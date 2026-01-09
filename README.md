@@ -18,7 +18,7 @@ Modern, şık ve kullanıcı dostu bir YouTube video ve müzik indirme uygulamas
 
 En son sürümü **[Releases](https://github.com/nargilakerim/YT-Downloader/releases)** sayfasından indirebilirsiniz.
 
-1.  `Setup.exe` dosyasını indirin.
+1.  `YouTube.Indirici-1.2.3.Setup.exe` dosyasını indirin.
 2.  Çift tıklayarak kurun.
 3.  İndirmeye başlayın!
 
