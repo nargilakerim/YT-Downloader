@@ -204,12 +204,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const url = urlInput.value.trim();
 
     if (!url) {
-      showError('Lütfen bir YouTube URLsi girin');
+      showError('Lütfen bir video veya medya bağlantısı girin');
       return;
     }
 
-    if (!isValidYouTubeUrl(url)) {
-      showError('Geçersiz YouTube URLsi');
+    if (!isValidUrl(url)) {
+      showError('Geçersiz URL. Lütfen geçerli bir bağlantı girin.');
       return;
     }
 
@@ -244,14 +244,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function isValidYouTubeUrl(url) {
-    const patterns = [
-      /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=[\w-]+/,
-      /^(https?:\/\/)?(www\.)?youtube\.com\/playlist\?list=[\w-]+/,
-      /^(https?:\/\/)?(www\.)?youtu\.be\/[\w-]+/,
-      /^(https?:\/\/)?(www\.)?youtube\.com\/shorts\/[\w-]+/
-    ];
-    return patterns.some(pattern => pattern.test(url));
+  function isValidUrl(url) {
+    try {
+      new URL(url);
+      return url.startsWith('http://') || url.startsWith('https://');
+    } catch {
+      return false;
+    }
   }
 
   function showVideoInfo(info) {

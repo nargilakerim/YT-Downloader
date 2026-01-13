@@ -16,7 +16,7 @@ let mainWindow;
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.4.0';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)

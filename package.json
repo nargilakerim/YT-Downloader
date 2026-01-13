@@ -1,8 +1,8 @@
 {
   "name": "youtube-indirici",
-  "productName": "YouTube Indirici",
-  "version": "1.3.1",
-  "description": "YouTube video, muzik ve playlist indirme uygulamasi",
+  "productName": "Medya Indirici",
+  "version": "1.4.0",
+  "description": "YouTube, Instagram, TikTok ve daha fazlasi icin medya indirme uygulamasi",
   "main": ".webpack/main",
   "scripts": {
     "start": "electron-forge start",
