@@ -17,7 +17,7 @@ let tray;
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.2.7';
+const APP_VERSION = '1.2.8';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)
@@ -570,14 +570,27 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
     const tempDir = app.getPath('temp');
     const setupPath = path.join(tempDir, 'YouTubeIndirici-Update-Setup.exe');
 
-    const file = fs.createWriteStream(setupPath);
+    // Use high watermark for faster downloads
+    const file = fs.createWriteStream(setupPath, { highWaterMark: 1024 * 1024 }); // 1MB buffer
     let totalBytes = 0;
     let downloadedBytes = 0;
 
     const download = (url) => {
-      const protocol = url.startsWith('https') ? https : require('http');
+      const parsedUrl = new URL(url);
+      const protocol = parsedUrl.protocol === 'https:' ? https : require('http');
 
-      protocol.get(url, (response) => {
+      const options = {
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname + parsedUrl.search,
+        headers: {
+          'User-Agent': 'YouTubeIndirici/1.2.7',
+          'Accept': '*/*',
+          'Accept-Encoding': 'identity', // No compression for faster streaming
+          'Connection': 'keep-alive'
+        }
+      };
+
+      protocol.get(options, (response) => {
         // Handle redirect
         if (response.statusCode === 302 || response.statusCode === 301) {
           download(response.headers.location);
@@ -586,11 +599,18 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
 
         totalBytes = parseInt(response.headers['content-length'], 10) || 0;
 
+        // Optimize streaming
         response.on('data', (chunk) => {
           downloadedBytes += chunk.length;
           if (totalBytes > 0) {
             const percent = Math.round((downloadedBytes / totalBytes) * 100);
-            mainWindow.webContents.send('update-download-progress', { percent, downloadedBytes, totalBytes });
+            const speed = (downloadedBytes / 1024 / 1024).toFixed(2);
+            mainWindow.webContents.send('update-download-progress', {
+              percent,
+              downloadedBytes,
+              totalBytes,
+              speed: `${speed} MB`
+            });
           }
         });
 
@@ -609,6 +629,7 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
 
           // Quit after short delay to let installer start
           setTimeout(() => {
+            app.isQuitting = true;
             app.quit();
           }, 1000);
 
