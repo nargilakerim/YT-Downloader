@@ -163,6 +163,12 @@
               </div>
             </div>
 
+            <!-- Filename Editor -->
+            <div class="filename-editor">
+              <label>Dosya Adı (isteğe bağlı)</label>
+              <input type="text" id="filename-input" placeholder="Varsayılan: Video başlığı" autocomplete="off">
+            </div>
+
             <!-- Indirme Butonu -->
             <button id="btn-download" class="btn-download">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -222,6 +228,8 @@
           </div>
           <div class="progress-info">
             <span id="progress-percent">0%</span>
+            <span id="progress-speed" class="progress-speed"></span>
+            <span id="progress-eta" class="progress-eta"></span>
           </div>
         </div>
 
@@ -252,6 +260,29 @@
             </svg>
             <span>Geçmişi Temizle</span>
           </button>
+        </div>
+
+        <!-- Statistics Card -->
+        <div class="stats-card" id="stats-card">
+          <div class="stat-item">
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">Toplam</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="stat-videos">0</div>
+            <div class="stat-label">Video</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="stat-audios">0</div>
+            <div class="stat-label">Müzik</div>
+          </div>
+        </div>
+
+        <!-- History Filter -->
+        <div class="history-filter">
+          <button class="filter-btn active" data-filter="all">Tümü</button>
+          <button class="filter-btn" data-filter="video">Videolar</button>
+          <button class="filter-btn" data-filter="audio">Müzikler</button>
         </div>
 
         <div id="history-list" class="history-list">

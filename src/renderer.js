@@ -73,6 +73,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   let videoDownloadPath = null;
   let audioDownloadPath = null;
 
+  // Progress elements
+  const progressSpeed = document.getElementById('progress-speed');
+  const progressEta = document.getElementById('progress-eta');
+
+  // Statistics
+  let downloadStats = { total: 0, videos: 0, audios: 0 };
+
   // ============================================
   // Baslangic Ayarlari
   // ============================================
@@ -371,12 +378,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.electronAPI.onDownloadProgress((progress) => {
     progressFill.style.width = `${progress.percent}%`;
     progressPercent.textContent = `${Math.round(progress.percent)}%`;
+
+    // Show speed if available
+    if (progress.speed && progressSpeed) {
+      progressSpeed.textContent = `${progress.speed} MB/s`;
+    }
+
+    // Show ETA if available
+    if (progress.eta && progressEta) {
+      progressEta.textContent = `Kalan: ${progress.eta}`;
+    }
   });
 
   window.electronAPI.onDownloadComplete((result) => {
     downloadProgress.classList.add('hidden');
     downloadComplete.classList.remove('hidden');
     lastDownloadPath = result.filePath;
+
+    // Play notification sound
+    playNotificationSound();
+
+    // Show confetti
+    showConfetti();
+
+    // Update statistics
+    updateStats();
 
     // Gecmisi guncelle
     loadHistory();
@@ -436,10 +462,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Gecmis Yonetimi
   // ============================================
 
+  let currentHistoryFilter = 'all';
+  const filterButtons = document.querySelectorAll('.filter-btn');
+  const statTotal = document.getElementById('stat-total');
+  const statVideos = document.getElementById('stat-videos');
+  const statAudios = document.getElementById('stat-audios');
+
   async function loadHistory() {
     const history = await window.electronAPI.getHistory();
 
-    if (history.length === 0) {
+    // Update stats display
+    if (statTotal) statTotal.textContent = downloadStats.total;
+    if (statVideos) statVideos.textContent = downloadStats.videos;
+    if (statAudios) statAudios.textContent = downloadStats.audios;
+
+    // Filter history
+    let filteredHistory = history;
+    if (currentHistoryFilter !== 'all') {
+      filteredHistory = history.filter(item => item.type === currentHistoryFilter);
+    }
+
+    if (filteredHistory.length === 0) {
       historyList.classList.add('hidden');
       historyEmpty.classList.remove('hidden');
       return;
@@ -449,9 +492,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     historyEmpty.classList.add('hidden');
 
     historyList.innerHTML = '';
-    history.forEach(item => {
+    filteredHistory.forEach(item => {
       const itemEl = document.createElement('div');
       itemEl.className = 'history-item';
+      itemEl.dataset.type = item.type;
       itemEl.innerHTML = `
         <img src="${item.thumbnail || ''}" alt="">
         <div class="history-item-info">
@@ -480,6 +524,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
   }
+
+  // History filter buttons
+  filterButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentHistoryFilter = btn.dataset.filter;
+      loadHistory();
+    });
+  });
 
   btnClearHistory.addEventListener('click', async () => {
     if (confirm('Tüm indirme geçmişini silmek istediğinize emin misiniz?')) {
@@ -703,5 +757,109 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   });
+
+  // ============================================
+  // Keyboard Shortcuts
+  // ============================================
+
+  document.addEventListener('keydown', async (e) => {
+    // Ctrl+V - Paste and fetch
+    if (e.ctrlKey && e.key === 'v' && document.activeElement !== urlInput) {
+      urlInput.focus();
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && (text.includes('youtube.com') || text.includes('youtu.be'))) {
+          urlInput.value = text;
+          btnFetch.click();
+        }
+      } catch (err) {
+        console.log('Clipboard access denied');
+      }
+    }
+
+    // Enter - Fetch when input focused
+    if (e.key === 'Enter' && document.activeElement === urlInput) {
+      btnFetch.click();
+    }
+  });
+
+  // ============================================
+  // Sound Notification
+  // ============================================
+
+  function playNotificationSound() {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (e) {
+      console.log('Audio not supported');
+    }
+  }
+
+  // ============================================
+  // Confetti Effect
+  // ============================================
+
+  function showConfetti() {
+    const container = document.body;
+    const colors = ['#ff0033', '#00ff88', '#ffcc00', '#0099ff', '#ff66cc'];
+
+    for (let i = 0; i < 50; i++) {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.cssText = `
+        position: fixed;
+        width: 10px;
+        height: 10px;
+        background: ${colors[Math.floor(Math.random() * colors.length)]};
+        left: ${Math.random() * 100}%;
+        top: -10px;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        animation: confettiFall ${2 + Math.random() * 2}s ease-out forwards;
+        animation-delay: ${Math.random() * 0.5}s;
+      `;
+      container.appendChild(confetti);
+
+      setTimeout(() => confetti.remove(), 4000);
+    }
+  }
+
+  // ============================================
+  // Statistics
+  // ============================================
+
+  async function loadStats() {
+    downloadStats = await window.electronAPI.getStoreValue('stats') || { total: 0, videos: 0, audios: 0 };
+  }
+
+  async function updateStats() {
+    const downloadType = document.querySelector('input[name="download-type"]:checked')?.value || 'video';
+    downloadStats.total++;
+    if (downloadType === 'video') {
+      downloadStats.videos++;
+    } else {
+      downloadStats.audios++;
+    }
+    await window.electronAPI.setStoreValue('stats', downloadStats);
+  }
+
+  // Load stats on init
+  loadStats();
 });
 

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } = require('electron');
 const path = require('node:path');
 const Store = require('electron-store');
 const { spawn, exec } = require('child_process');
@@ -11,12 +11,13 @@ if (require('electron-squirrel-startup')) {
 
 let store;
 let mainWindow;
+let tray;
 
 // yt-dlp and ffmpeg paths - check AppData folder first, then user's bin, then system PATH
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.2.6';
+const APP_VERSION = '1.2.7';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)
@@ -177,12 +178,40 @@ class DownloadManager extends EventEmitter {
       this.currentProcess.stdout.on('data', (data) => {
         const output = data; // Already UTF-8 string due to setEncoding
 
+        // Parse progress: 50.5% of 100.00MiB at 2.50MiB/s ETA 00:20
         const progressMatch = output.match(/(\d+\.?\d*)%/);
+        const speedMatch = output.match(/at\s+(\d+\.?\d*)(Ki?B|Mi?B|Gi?B)\/s/i);
+        const etaMatch = output.match(/ETA\s+(\d{2}:\d{2}(?::\d{2})?)/);
+
         if (progressMatch) {
           const progress = parseFloat(progressMatch[1]);
           if (progress !== lastProgress) {
             lastProgress = progress;
-            this.emit('progress', { percent: progress, title: title });
+
+            // Build enhanced progress data
+            const progressData = {
+              percent: progress,
+              title: title,
+              speed: null,
+              eta: null
+            };
+
+            // Parse speed
+            if (speedMatch) {
+              let speed = parseFloat(speedMatch[1]);
+              const unit = speedMatch[2].toUpperCase();
+              // Convert to MB/s
+              if (unit.startsWith('K')) speed /= 1024;
+              if (unit.startsWith('G')) speed *= 1024;
+              progressData.speed = speed.toFixed(2);
+            }
+
+            // Parse ETA
+            if (etaMatch) {
+              progressData.eta = etaMatch[1];
+            }
+
+            this.emit('progress', progressData);
           }
         }
 
@@ -262,6 +291,14 @@ const createWindow = () => {
   if (process.env.NODE_ENV === 'development') {
     mainWindow.webContents.openDevTools();
   }
+
+  // Minimize to tray on close
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
 };
 
 app.whenReady().then(() => {
@@ -276,6 +313,27 @@ app.whenReady().then(() => {
 
   downloadManager = new DownloadManager();
   createWindow();
+
+  // Create system tray
+  const icon = nativeImage.createEmpty();
+  tray = new Tray(icon);
+  tray.setToolTip('YouTube İndirici');
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Göster', click: () => mainWindow.show() },
+    { type: 'separator' },
+    {
+      label: 'Çıkış', click: () => {
+        app.isQuitting = true;
+        app.quit();
+      }
+    }
+  ]);
+  tray.setContextMenu(contextMenu);
+
+  tray.on('click', () => {
+    mainWindow.show();
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
