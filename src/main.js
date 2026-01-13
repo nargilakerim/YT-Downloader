@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('node:path');
 const Store = require('electron-store');
 const { spawn, exec } = require('child_process');
@@ -11,13 +11,12 @@ if (require('electron-squirrel-startup')) {
 
 let store;
 let mainWindow;
-let tray;
 
 // yt-dlp and ffmpeg paths - check AppData folder first, then user's bin, then system PATH
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.3.1';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)
@@ -135,8 +134,17 @@ class DownloadManager extends EventEmitter {
       // Determine output filename template
       let outputTemplate;
       if (customFilename && customFilename.trim()) {
-        // Use custom filename (sanitize for Windows)
-        const safeName = customFilename.replace(/[<>:"/\\|?*]/g, '_');
+        // Use custom filename - sanitize Turkish chars and Windows-invalid chars
+        let safeName = customFilename
+          // Turkish uppercase to lowercase first
+          .replace(/İ/g, 'i').replace(/I/g, 'i')
+          .replace(/Ğ/g, 'g').replace(/ğ/g, 'g')
+          .replace(/Ü/g, 'u').replace(/ü/g, 'u')
+          .replace(/Ş/g, 's').replace(/ş/g, 's')
+          .replace(/Ö/g, 'o').replace(/ö/g, 'o')
+          .replace(/Ç/g, 'c').replace(/ç/g, 'c')
+          // Windows invalid chars
+          .replace(/[<>:"/\\|?*]/g, '_');
         outputTemplate = path.join(outputPath, `${safeName}.%(ext)s`);
       } else {
         outputTemplate = path.join(outputPath, '%(title)s.%(ext)s');
@@ -305,14 +313,6 @@ const createWindow = () => {
   if (process.env.NODE_ENV === 'development') {
     mainWindow.webContents.openDevTools();
   }
-
-  // Minimize to tray on close
-  mainWindow.on('close', (event) => {
-    if (!app.isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-    }
-  });
 };
 
 app.whenReady().then(() => {
@@ -327,27 +327,6 @@ app.whenReady().then(() => {
 
   downloadManager = new DownloadManager();
   createWindow();
-
-  // Create system tray
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
-  tray.setToolTip('YouTube İndirici');
-
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Göster', click: () => mainWindow.show() },
-    { type: 'separator' },
-    {
-      label: 'Çıkış', click: () => {
-        app.isQuitting = true;
-        app.quit();
-      }
-    }
-  ]);
-  tray.setContextMenu(contextMenu);
-
-  tray.on('click', () => {
-    mainWindow.show();
-  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
