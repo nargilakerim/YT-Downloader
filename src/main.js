@@ -12,13 +12,34 @@ if (require('electron-squirrel-startup')) {
 let store;
 let mainWindow;
 
-// yt-dlp and ffmpeg paths - check user's bin folder first, then system PATH
+// yt-dlp and ffmpeg paths - check AppData folder first, then user's bin, then system PATH
 const fs = require('fs');
+const https = require('https');
+
+const APP_VERSION = '1.2.4';
+const GITHUB_REPO = 'nargilakerim/YT-Downloader';
+
+// Primary: AppData folder (recommended)
+const appDataDir = path.join(process.env.APPDATA || '', 'youtube-indirici', 'bin');
+const appDataYtDlp = path.join(appDataDir, 'yt-dlp.exe');
+const appDataFfmpeg = path.join(appDataDir, 'ffmpeg.exe');
+
+// Fallback: User's bin folder
 const userBinDir = path.join(process.env.USERPROFILE || process.env.HOME, 'bin');
 const userYtDlp = path.join(userBinDir, 'yt-dlp.exe');
 const userFfmpeg = path.join(userBinDir, 'ffmpeg.exe');
-const ytdlpPath = fs.existsSync(userYtDlp) ? userYtDlp : 'yt-dlp';
-const ffmpegPath = fs.existsSync(userFfmpeg) ? userBinDir : null;
+
+// Determine which path to use
+let ytdlpPath = 'yt-dlp';
+let ffmpegPath = null;
+
+if (fs.existsSync(appDataYtDlp)) {
+  ytdlpPath = appDataYtDlp;
+  ffmpegPath = fs.existsSync(appDataFfmpeg) ? appDataDir : null;
+} else if (fs.existsSync(userYtDlp)) {
+  ytdlpPath = userYtDlp;
+  ffmpegPath = fs.existsSync(userFfmpeg) ? userBinDir : null;
+}
 
 // Download Manager Class
 class DownloadManager extends EventEmitter {
@@ -123,14 +144,19 @@ class DownloadManager extends EventEmitter {
       }
 
       if (type === 'audio') {
+        // Audio only: extract audio and convert to mp3
         args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
       } else if (type === 'video') {
+        // Video: prefer mp4/m4a, fallback to any format with merge
         if (quality === 'best') {
-          args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
+          args.push('-f', 'bestvideo+bestaudio/best');
         } else {
-          args.push('-f', `bestvideo[height<=${quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<=${quality}][ext=mp4]/best`);
+          args.push('-f', `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]/best`);
         }
+        // Force output to mp4 format
         args.push('--merge-output-format', 'mp4');
+        // Ensure proper encoding
+        args.push('--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac');
       }
 
       args.push(url);
@@ -392,4 +418,106 @@ ipcMain.handle('open-folder', (event, filePath) => {
 // yt-dlp check
 ipcMain.handle('check-ytdlp', async () => {
   return await downloadManager.checkYtDlp();
+});
+
+// Get app version
+ipcMain.handle('get-app-version', () => {
+  return APP_VERSION;
+});
+
+// Get yt-dlp path info
+ipcMain.handle('get-ytdlp-path', () => {
+  return {
+    path: ytdlpPath,
+    appDataDir: appDataDir,
+    isSystemPath: ytdlpPath === 'yt-dlp'
+  };
+});
+
+// Check for app updates from GitHub
+ipcMain.handle('check-for-updates', () => {
+  return new Promise((resolve) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: `/repos/${GITHUB_REPO}/releases/latest`,
+      headers: { 'User-Agent': 'YouTubeIndirici' }
+    };
+
+    https.get(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const release = JSON.parse(data);
+          const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
+          const hasUpdate = compareVersions(latestVersion, APP_VERSION) > 0;
+          resolve({
+            hasUpdate,
+            currentVersion: APP_VERSION,
+            latestVersion,
+            downloadUrl: release.html_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+            releaseNotes: release.body || ''
+          });
+        } catch (e) {
+          resolve({ hasUpdate: false, currentVersion: APP_VERSION, error: e.message });
+        }
+      });
+    }).on('error', (e) => {
+      resolve({ hasUpdate: false, currentVersion: APP_VERSION, error: e.message });
+    });
+  });
+});
+
+// Version comparison helper
+function compareVersions(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+  }
+  return 0;
+}
+
+// Download yt-dlp to AppData
+ipcMain.handle('download-ytdlp', async () => {
+  return new Promise((resolve) => {
+    // Create AppData bin directory if not exists
+    if (!fs.existsSync(appDataDir)) {
+      fs.mkdirSync(appDataDir, { recursive: true });
+    }
+
+    const ytdlpUrl = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
+    const destPath = path.join(appDataDir, 'yt-dlp.exe');
+
+    const file = fs.createWriteStream(destPath);
+
+    const download = (url) => {
+      https.get(url, (response) => {
+        // Handle redirect
+        if (response.statusCode === 302 || response.statusCode === 301) {
+          download(response.headers.location);
+          return;
+        }
+
+        response.pipe(file);
+        file.on('finish', () => {
+          file.close();
+          // Update ytdlpPath to use the new location
+          ytdlpPath = destPath;
+          resolve({ success: true, path: destPath });
+        });
+      }).on('error', (e) => {
+        fs.unlink(destPath, () => { });
+        resolve({ success: false, error: e.message });
+      });
+    };
+
+    download(ytdlpUrl);
+  });
+});
+
+// Open external URL
+ipcMain.handle('open-external', (event, url) => {
+  shell.openExternal(url);
 });

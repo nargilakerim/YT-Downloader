@@ -563,4 +563,106 @@ document.addEventListener('DOMContentLoaded', async () => {
       minute: '2-digit'
     });
   }
+
+  // ============================================
+  // Update System
+  // ============================================
+
+  const updateModal = document.getElementById('update-modal');
+  const updateVersionInfo = document.getElementById('update-version-info');
+  const updateNotes = document.getElementById('update-notes');
+  const btnDownloadUpdate = document.getElementById('btn-download-update');
+  const btnCheckUpdates = document.getElementById('btn-check-updates');
+  const appVersionText = document.getElementById('app-version-text');
+
+  // Update modal elements  
+  const ytdlpDownloadModal = document.getElementById('ytdlp-download-modal');
+  const ytdlpDownloadStatus = document.getElementById('ytdlp-download-status');
+  const btnAutoDownloadYtdlp = document.getElementById('btn-auto-download-ytdlp');
+
+  // Check for updates on startup
+  async function checkForUpdates(showNoUpdateMessage = false) {
+    try {
+      const result = await window.electronAPI.checkForUpdates();
+
+      if (result.hasUpdate) {
+        updateVersionInfo.textContent = `v${result.currentVersion} → v${result.latestVersion}`;
+        updateNotes.textContent = result.releaseNotes || 'Yeni özellikler ve hata düzeltmeleri içerir.';
+        updateModal.classList.remove('hidden');
+
+        // Store download URL for button
+        btnDownloadUpdate.dataset.url = result.downloadUrl;
+      } else if (showNoUpdateMessage) {
+        alert('Uygulamanız güncel! ✅');
+      }
+
+      // Update version text
+      if (appVersionText) {
+        appVersionText.textContent = `YouTube İndirici v${result.currentVersion}`;
+      }
+    } catch (error) {
+      console.error('Update check failed:', error);
+    }
+  }
+
+  // Check for updates on startup (after 2 seconds)
+  setTimeout(() => checkForUpdates(false), 2000);
+
+  // Manual update check button
+  if (btnCheckUpdates) {
+    btnCheckUpdates.addEventListener('click', () => checkForUpdates(true));
+  }
+
+  // Download update button
+  if (btnDownloadUpdate) {
+    btnDownloadUpdate.addEventListener('click', () => {
+      const url = btnDownloadUpdate.dataset.url;
+      if (url) {
+        window.electronAPI.openExternal(url);
+      }
+    });
+  }
+
+  // ============================================
+  // yt-dlp Auto Download
+  // ============================================
+
+  if (btnAutoDownloadYtdlp) {
+    btnAutoDownloadYtdlp.addEventListener('click', async () => {
+      // Show download modal
+      ytdlpDownloadModal.classList.remove('hidden');
+      ytdlpDownloadStatus.textContent = 'yt-dlp indiriliyor, lütfen bekleyin...';
+
+      try {
+        const result = await window.electronAPI.downloadYtDlp();
+
+        if (result.success) {
+          ytdlpDownloadStatus.textContent = '✅ yt-dlp başarıyla indirildi!';
+          ytdlpStatus.textContent = 'Kurulu (yeni)';
+          ytdlpStatus.style.color = 'var(--success)';
+
+          // Hide modal after 2 seconds
+          setTimeout(() => {
+            ytdlpDownloadModal.classList.add('hidden');
+          }, 2000);
+        } else {
+          ytdlpDownloadStatus.textContent = `❌ İndirme başarısız: ${result.error}`;
+        }
+      } catch (error) {
+        ytdlpDownloadStatus.textContent = `❌ Hata: ${error.message}`;
+      }
+    });
+  }
+
+  // Close modals when clicking overlay
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', () => {
+      // Don't allow closing update modal if there's an update (forced update)
+      const modal = overlay.closest('.modal');
+      if (modal && modal.id !== 'update-modal') {
+        modal.classList.add('hidden');
+      }
+    });
+  });
 });
+

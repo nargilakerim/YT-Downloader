@@ -1,6 +1,9 @@
 node_modules
 out
+dist
+.webpack
 .env
 .DS_Store
 *.log
 *.exe
+*.nupkg

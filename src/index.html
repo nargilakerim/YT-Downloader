@@ -317,21 +317,61 @@
               <h3>yt-dlp Durumu</h3>
               <p id="ytdlp-status">Kontrol ediliyor...</p>
             </div>
+            <button class="btn-primary" id="btn-auto-download-ytdlp" style="margin-right: 8px;">
+              Otomatik İndir
+            </button>
             <a href="https://github.com/yt-dlp/yt-dlp/releases" target="_blank" class="btn-secondary"
               id="ytdlp-download-link">
-              İndir
+              Manuel İndir
             </a>
           </div>
 
           <div class="settings-item">
             <div class="settings-info">
               <h3>Uygulama Hakkında</h3>
-              <p>YouTube İndirici v1.2.2</p>
+              <p id="app-version-text">YouTube İndirici v1.2.4</p>
             </div>
+            <button class="btn-secondary" id="btn-check-updates">
+              Güncelleme Kontrol
+            </button>
           </div>
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- Güncelleme Modal -->
+  <div id="update-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🚀 Güncelleme Mevcut!</h2>
+      </div>
+      <div class="modal-body">
+        <p>Yeni bir sürüm mevcut:</p>
+        <p><strong id="update-version-info">v1.2.4 → v1.2.5</strong></p>
+        <p class="update-notes" id="update-notes"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="btn-download-update">Güncellemeyi İndir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- yt-dlp İndirme Modal -->
+  <div id="ytdlp-download-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📥 yt-dlp İndiriliyor...</h2>
+      </div>
+      <div class="modal-body">
+        <p id="ytdlp-download-status">Lütfen bekleyin, yt-dlp indiriliyor...</p>
+        <div class="progress-bar">
+          <div class="progress-fill" id="ytdlp-progress" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </body>
 

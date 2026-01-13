@@ -41,6 +41,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openFile: (filePath) => ipcRenderer.invoke('open-file', filePath),
     openFolder: (filePath) => ipcRenderer.invoke('open-folder', filePath),
 
-    // yt-dlp kontrolu
-    checkYtDlp: () => ipcRenderer.invoke('check-ytdlp')
+    // yt-dlp kontrolu ve indirme
+    checkYtDlp: () => ipcRenderer.invoke('check-ytdlp'),
+    downloadYtDlp: () => ipcRenderer.invoke('download-ytdlp'),
+    getYtDlpPath: () => ipcRenderer.invoke('get-ytdlp-path'),
+
+    // Uygulama guncelleme
+    getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

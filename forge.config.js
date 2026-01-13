@@ -4,13 +4,17 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
-    icon: './assets/icon'
+    icon: './assets/icon',
+    appName: 'YouTube Indirici',
+    name: 'YouTubeIndirici'
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
       config: {
+        name: 'YouTubeIndirici',
+        setupExe: 'YouTubeIndirici-Setup.exe',
         setupIcon: './assets/icon.ico'
       },
     },
