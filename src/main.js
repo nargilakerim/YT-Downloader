@@ -17,7 +17,7 @@ let tray;
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.2.9';
+const APP_VERSION = '1.3.0';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)
@@ -159,17 +159,19 @@ class DownloadManager extends EventEmitter {
         // Audio only: extract audio and convert to mp3
         args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
       } else if (type === 'video') {
-        // Video: FORCE mp4 only - prefer formats that don't need remux
+        // Video: Prefer already-merged mp4, then merge with cleanup
         if (quality === 'best') {
-          // Prefer mp4 native, then remux any to mp4
-          args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/bestvideo+bestaudio');
+          // First try: single file mp4 with audio, then merge separate streams
+          args.push('-f', 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best');
         } else {
-          args.push('-f', `bestvideo[height<=${quality}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]`);
+          args.push('-f', `best[height<=${quality}][ext=mp4]/bestvideo[height<=${quality}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${quality}]+bestaudio/best`);
         }
-        // Force output to mp4 format - CRITICAL for preventing webm output
+        // Force output to mp4 format
         args.push('--merge-output-format', 'mp4');
-        // Re-encode to ensure compatibility (prevents codec issues)
-        args.push('--postprocessor-args', 'ffmpeg:-c:v libx264 -c:a aac -movflags +faststart');
+        // Use copy for speed (no re-encode), just remux
+        args.push('--postprocessor-args', 'ffmpeg:-c copy');
+        // CRITICAL: Clean up temp/intermediate files after merge
+        args.push('--no-keep-video');
       }
 
       args.push(url);
