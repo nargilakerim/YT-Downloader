@@ -16,7 +16,7 @@ let mainWindow;
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)
@@ -63,7 +63,7 @@ class DownloadManager extends EventEmitter {
 
   async getVideoInfo(url) {
     return new Promise((resolve, reject) => {
-      const args = ['--js-runtimes', 'nodejs', '--dump-json', '--no-download', '--flat-playlist', url];
+      const args = ['--dump-json', '--no-download', '--flat-playlist', url];
       let output = '';
       let errorOutput = '';
 
@@ -79,7 +79,9 @@ class DownloadManager extends EventEmitter {
 
       process.on('close', (code) => {
         if (code !== 0) {
-          reject(new Error(errorOutput || 'Video bilgisi alinamadi'));
+          // Show more helpful error message
+          const cleanError = errorOutput.replace(/WARNING:.*\n/g, '').trim();
+          reject(new Error(cleanError || 'Video bilgisi alinamadi'));
           return;
         }
 
@@ -89,13 +91,24 @@ class DownloadManager extends EventEmitter {
 
           if (items.length === 1) {
             const info = items[0];
+            // Enhanced thumbnail extraction for various platforms
+            let thumbnail = info.thumbnail;
+            if (!thumbnail && info.thumbnails && info.thumbnails.length > 0) {
+              // Get the last (usually highest quality) thumbnail
+              thumbnail = info.thumbnails[info.thumbnails.length - 1]?.url;
+            }
+            if (!thumbnail) {
+              // Fallback for some platforms
+              thumbnail = info.display_url || info.video_url || '';
+            }
+
             resolve({
               isPlaylist: false,
               id: info.id,
-              title: info.title,
-              thumbnail: info.thumbnail || info.thumbnails?.[info.thumbnails.length - 1]?.url,
+              title: info.title || info.description?.substring(0, 50) || 'Video',
+              thumbnail: thumbnail,
               duration: info.duration,
-              uploader: info.uploader || info.channel,
+              uploader: info.uploader || info.channel || info.uploader_id || '',
               viewCount: info.view_count,
               url: url
             });
