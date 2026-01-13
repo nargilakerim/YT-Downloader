@@ -1,7 +1,7 @@
 {
   "name": "youtube-indirici",
   "productName": "Medya Indirici",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "YouTube, Instagram, TikTok ve daha fazlasi icin medya indirme uygulamasi",
   "main": ".webpack/main",
   "scripts": {

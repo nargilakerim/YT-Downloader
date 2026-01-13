@@ -16,7 +16,7 @@ let mainWindow;
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.4.1';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)
@@ -151,7 +151,6 @@ class DownloadManager extends EventEmitter {
       }
 
       let args = [
-        '--js-runtimes', 'nodejs',
         '--newline',
         '--progress',
         '--windows-filenames',  // Windows-safe filenames (handles Turkish chars)
