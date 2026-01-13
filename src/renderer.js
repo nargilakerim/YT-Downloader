@@ -317,13 +317,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const downloadType = document.querySelector('input[name="download-type"]:checked').value;
     const quality = qualitySelect.value;
+    const filenameInput = document.getElementById('filename-input');
+    const customFilename = filenameInput?.value?.trim() || '';
 
     // UI guncelle
     videoInfo.classList.add('hidden');
     downloadProgress.classList.remove('hidden');
-    progressTitle.textContent = currentVideoInfo.title;
+    progressTitle.textContent = customFilename || currentVideoInfo.title;
     progressFill.style.width = '0%';
     progressPercent.textContent = '0%';
+
+    // Reset progress info
+    if (progressSpeed) progressSpeed.textContent = '';
+    if (progressEta) progressEta.textContent = '';
 
     try {
       const targetPath = downloadType === 'audio' ? audioDownloadPath : videoDownloadPath;
@@ -340,8 +346,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         thumbnail: currentVideoInfo.thumbnail,
         type: downloadType,
         quality: quality === 'best' ? 'best' : parseInt(quality),
-        outputPath: targetPath
+        outputPath: targetPath,
+        customFilename: customFilename // Pass custom filename
       });
+
+      // Clear filename input after download starts
+      if (filenameInput) filenameInput.value = '';
     } catch (error) {
       showError('Indirme baslatilamadi: ' + error.message);
       downloadProgress.classList.add('hidden');

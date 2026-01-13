@@ -17,7 +17,7 @@ let tray;
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.2.8';
+const APP_VERSION = '1.2.9';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)
@@ -129,14 +129,25 @@ class DownloadManager extends EventEmitter {
     }
 
     this.isDownloading = true;
-    const { url, type, quality, outputPath, title } = options;
+    const { url, type, quality, outputPath, title, customFilename } = options;
 
     return new Promise((resolve, reject) => {
+      // Determine output filename template
+      let outputTemplate;
+      if (customFilename && customFilename.trim()) {
+        // Use custom filename (sanitize for Windows)
+        const safeName = customFilename.replace(/[<>:"/\\|?*]/g, '_');
+        outputTemplate = path.join(outputPath, `${safeName}.%(ext)s`);
+      } else {
+        outputTemplate = path.join(outputPath, '%(title)s.%(ext)s');
+      }
+
       let args = [
         '--js-runtimes', 'nodejs',
         '--newline',
         '--progress',
-        '-o', path.join(outputPath, '%(title)s.%(ext)s')
+        '--windows-filenames',  // Windows-safe filenames (handles Turkish chars)
+        '-o', outputTemplate
       ];
 
       // Add ffmpeg location if available
@@ -148,16 +159,17 @@ class DownloadManager extends EventEmitter {
         // Audio only: extract audio and convert to mp3
         args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
       } else if (type === 'video') {
-        // Video: prefer mp4/m4a, fallback to any format with merge
+        // Video: FORCE mp4 only - prefer formats that don't need remux
         if (quality === 'best') {
-          args.push('-f', 'bestvideo+bestaudio/best');
+          // Prefer mp4 native, then remux any to mp4
+          args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/bestvideo+bestaudio');
         } else {
-          args.push('-f', `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]/best`);
+          args.push('-f', `bestvideo[height<=${quality}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]`);
         }
-        // Force output to mp4 format
+        // Force output to mp4 format - CRITICAL for preventing webm output
         args.push('--merge-output-format', 'mp4');
-        // Ensure proper encoding
-        args.push('--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac');
+        // Re-encode to ensure compatibility (prevents codec issues)
+        args.push('--postprocessor-args', 'ffmpeg:-c:v libx264 -c:a aac -movflags +faststart');
       }
 
       args.push(url);
