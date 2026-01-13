@@ -16,7 +16,7 @@ let mainWindow;
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.2.4';
+const APP_VERSION = '1.2.5';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)
@@ -161,13 +161,21 @@ class DownloadManager extends EventEmitter {
 
       args.push(url);
 
-      this.currentProcess = spawn(ytdlpPath, args, { shell: false });
+      // Spawn with UTF-8 encoding for Turkish character support
+      this.currentProcess = spawn(ytdlpPath, args, {
+        shell: false,
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+      });
+
+      // Set encoding to UTF-8 for proper Turkish character handling
+      this.currentProcess.stdout.setEncoding('utf8');
+      this.currentProcess.stderr.setEncoding('utf8');
 
       let lastProgress = 0;
       let outputFile = '';
 
       this.currentProcess.stdout.on('data', (data) => {
-        const output = data.toString();
+        const output = data; // Already UTF-8 string due to setEncoding
 
         const progressMatch = output.match(/(\d+\.?\d*)%/);
         if (progressMatch) {
@@ -195,7 +203,7 @@ class DownloadManager extends EventEmitter {
       });
 
       this.currentProcess.stderr.on('data', (data) => {
-        console.error('yt-dlp stderr:', data.toString());
+        console.error('yt-dlp stderr:', data); // Already UTF-8 string
       });
 
       this.currentProcess.on('close', (code) => {
