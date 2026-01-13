@@ -49,5 +49,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Uygulama guncelleme
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    downloadAndInstallUpdate: (setupUrl) => ipcRenderer.invoke('download-and-install-update', setupUrl),
+    onUpdateDownloadProgress: (callback) => {
+        ipcRenderer.on('update-download-progress', (event, progress) => callback(progress));
+    },
     openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

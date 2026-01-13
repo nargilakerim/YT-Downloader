@@ -16,7 +16,7 @@ let mainWindow;
 const fs = require('fs');
 const https = require('https');
 
-const APP_VERSION = '1.2.5';
+const APP_VERSION = '1.2.6';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
 // Primary: AppData folder (recommended)
@@ -459,11 +459,24 @@ ipcMain.handle('check-for-updates', () => {
           const release = JSON.parse(data);
           const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
           const hasUpdate = compareVersions(latestVersion, APP_VERSION) > 0;
+
+          // Find Setup.exe asset URL
+          let setupUrl = null;
+          if (release.assets && release.assets.length > 0) {
+            const setupAsset = release.assets.find(a =>
+              a.name.toLowerCase().includes('setup') && a.name.endsWith('.exe')
+            );
+            if (setupAsset) {
+              setupUrl = setupAsset.browser_download_url;
+            }
+          }
+
           resolve({
             hasUpdate,
             currentVersion: APP_VERSION,
             latestVersion,
             downloadUrl: release.html_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
+            setupUrl: setupUrl, // Direct download URL for Setup.exe
             releaseNotes: release.body || ''
           });
         } catch (e) {
@@ -486,6 +499,72 @@ function compareVersions(a, b) {
   }
   return 0;
 }
+
+// Download and install update
+ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
+  return new Promise((resolve) => {
+    if (!setupUrl) {
+      resolve({ success: false, error: 'Setup URL bulunamadı' });
+      return;
+    }
+
+    // Download to temp folder
+    const tempDir = app.getPath('temp');
+    const setupPath = path.join(tempDir, 'YouTubeIndirici-Update-Setup.exe');
+
+    const file = fs.createWriteStream(setupPath);
+    let totalBytes = 0;
+    let downloadedBytes = 0;
+
+    const download = (url) => {
+      const protocol = url.startsWith('https') ? https : require('http');
+
+      protocol.get(url, (response) => {
+        // Handle redirect
+        if (response.statusCode === 302 || response.statusCode === 301) {
+          download(response.headers.location);
+          return;
+        }
+
+        totalBytes = parseInt(response.headers['content-length'], 10) || 0;
+
+        response.on('data', (chunk) => {
+          downloadedBytes += chunk.length;
+          if (totalBytes > 0) {
+            const percent = Math.round((downloadedBytes / totalBytes) * 100);
+            mainWindow.webContents.send('update-download-progress', { percent, downloadedBytes, totalBytes });
+          }
+        });
+
+        response.pipe(file);
+
+        file.on('finish', () => {
+          file.close();
+
+          // Run the installer and quit the app
+          const { exec } = require('child_process');
+          exec(`"${setupPath}"`, (error) => {
+            if (error) {
+              resolve({ success: false, error: error.message });
+            }
+          });
+
+          // Quit after short delay to let installer start
+          setTimeout(() => {
+            app.quit();
+          }, 1000);
+
+          resolve({ success: true, path: setupPath });
+        });
+      }).on('error', (e) => {
+        fs.unlink(setupPath, () => { });
+        resolve({ success: false, error: e.message });
+      });
+    };
+
+    download(setupUrl);
+  });
+});
 
 // Download yt-dlp to AppData
 ipcMain.handle('download-ytdlp', async () => {
@@ -529,3 +608,4 @@ ipcMain.handle('download-ytdlp', async () => {
 ipcMain.handle('open-external', (event, url) => {
   shell.openExternal(url);
 });
+

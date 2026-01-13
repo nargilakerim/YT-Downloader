@@ -581,6 +581,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnAutoDownloadYtdlp = document.getElementById('btn-auto-download-ytdlp');
 
   // Check for updates on startup
+  let currentSetupUrl = null; // Store setup URL for download
+
   async function checkForUpdates(showNoUpdateMessage = false) {
     try {
       const result = await window.electronAPI.checkForUpdates();
@@ -590,8 +592,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateNotes.textContent = result.releaseNotes || 'Yeni özellikler ve hata düzeltmeleri içerir.';
         updateModal.classList.remove('hidden');
 
-        // Store download URL for button
-        btnDownloadUpdate.dataset.url = result.downloadUrl;
+        // Store setup URL for in-app download
+        currentSetupUrl = result.setupUrl;
+        btnDownloadUpdate.dataset.url = result.downloadUrl; // Fallback to external
+
+        // Change button text based on available download method
+        if (currentSetupUrl) {
+          btnDownloadUpdate.textContent = 'Şimdi Güncelle';
+        } else {
+          btnDownloadUpdate.textContent = 'İndirme Sayfası';
+        }
       } else if (showNoUpdateMessage) {
         alert('Uygulamanız güncel! ✅');
       }
@@ -613,12 +623,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnCheckUpdates.addEventListener('click', () => checkForUpdates(true));
   }
 
-  // Download update button
+  // Listen for update download progress
+  window.electronAPI.onUpdateDownloadProgress((progress) => {
+    if (btnDownloadUpdate) {
+      btnDownloadUpdate.textContent = `İndiriliyor... %${progress.percent}`;
+      btnDownloadUpdate.disabled = true;
+    }
+  });
+
+  // Download update button - now with in-app download
   if (btnDownloadUpdate) {
-    btnDownloadUpdate.addEventListener('click', () => {
-      const url = btnDownloadUpdate.dataset.url;
-      if (url) {
-        window.electronAPI.openExternal(url);
+    btnDownloadUpdate.addEventListener('click', async () => {
+      if (currentSetupUrl) {
+        // In-app download and install
+        btnDownloadUpdate.textContent = 'İndiriliyor...';
+        btnDownloadUpdate.disabled = true;
+
+        try {
+          const result = await window.electronAPI.downloadAndInstallUpdate(currentSetupUrl);
+          if (!result.success) {
+            alert(`Güncelleme başarısız: ${result.error}`);
+            btnDownloadUpdate.textContent = 'Tekrar Dene';
+            btnDownloadUpdate.disabled = false;
+          }
+          // If successful, app will quit and installer will run
+        } catch (error) {
+          alert(`Hata: ${error.message}`);
+          btnDownloadUpdate.textContent = 'Tekrar Dene';
+          btnDownloadUpdate.disabled = false;
+        }
+      } else {
+        // Fallback: open external URL
+        const url = btnDownloadUpdate.dataset.url;
+        if (url) {
+          window.electronAPI.openExternal(url);
+        }
       }
     });
   }
