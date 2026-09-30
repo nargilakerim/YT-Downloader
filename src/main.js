@@ -3,6 +3,8 @@ const path = require('node:path');
 const Store = require('electron-store');
 const { spawn, exec } = require('child_process');
 const { EventEmitter } = require('events');
+const fs = require('fs');
+const https = require('https');
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -12,33 +14,38 @@ if (require('electron-squirrel-startup')) {
 let store;
 let mainWindow;
 
-// yt-dlp and ffmpeg paths - check AppData folder first, then user's bin, then system PATH
-const fs = require('fs');
-const https = require('https');
-
-const APP_VERSION = '1.4.2';
+const APP_VERSION = '1.5.0';
 const GITHUB_REPO = 'nargilakerim/YT-Downloader';
 
-// Primary: AppData folder (recommended)
+// Primary: AppData folder
 const appDataDir = path.join(process.env.APPDATA || '', 'youtube-indirici', 'bin');
 const appDataYtDlp = path.join(appDataDir, 'yt-dlp.exe');
 const appDataFfmpeg = path.join(appDataDir, 'ffmpeg.exe');
+const appDataFfprobe = path.join(appDataDir, 'ffprobe.exe');
 
 // Fallback: User's bin folder
-const userBinDir = path.join(process.env.USERPROFILE || process.env.HOME, 'bin');
+const userBinDir = path.join(process.env.USERPROFILE || process.env.HOME || '', 'bin');
 const userYtDlp = path.join(userBinDir, 'yt-dlp.exe');
 const userFfmpeg = path.join(userBinDir, 'ffmpeg.exe');
 
-// Determine which path to use
-let ytdlpPath = 'yt-dlp';
-let ffmpegPath = null;
+// Locate tools
+function getResolvedPaths() {
+  let ytPath = 'yt-dlp';
+  let ffDir = null;
 
-if (fs.existsSync(appDataYtDlp)) {
-  ytdlpPath = appDataYtDlp;
-  ffmpegPath = fs.existsSync(appDataFfmpeg) ? appDataDir : null;
-} else if (fs.existsSync(userYtDlp)) {
-  ytdlpPath = userYtDlp;
-  ffmpegPath = fs.existsSync(userFfmpeg) ? userBinDir : null;
+  if (fs.existsSync(appDataYtDlp)) {
+    ytPath = appDataYtDlp;
+  } else if (fs.existsSync(userYtDlp)) {
+    ytPath = userYtDlp;
+  }
+
+  if (fs.existsSync(appDataFfmpeg)) {
+    ffDir = appDataDir;
+  } else if (fs.existsSync(userFfmpeg)) {
+    ffDir = userBinDir;
+  }
+
+  return { ytPath, ffDir };
 }
 
 // Download Manager Class
@@ -49,79 +56,117 @@ class DownloadManager extends EventEmitter {
     this.isDownloading = false;
   }
 
-  async checkYtDlp() {
-    return new Promise((resolve) => {
-      exec(`"${ytdlpPath}" --version`, (error, stdout) => {
+  async checkEngines() {
+    const { ytPath, ffDir } = getResolvedPaths();
+
+    const checkYt = new Promise((resolve) => {
+      exec(`"${ytPath}" --version`, (error, stdout) => {
         if (error) {
-          resolve({ installed: false, version: null });
+          resolve({ installed: false, version: null, path: ytPath });
         } else {
-          resolve({ installed: true, version: stdout.trim() });
+          resolve({ installed: true, version: stdout.trim(), path: ytPath });
         }
       });
     });
+
+    const checkFf = new Promise((resolve) => {
+      const ffmpegCmd = ffDir ? `"${path.join(ffDir, 'ffmpeg.exe')}"` : 'ffmpeg';
+      exec(`${ffmpegCmd} -version`, (error, stdout) => {
+        if (error) {
+          resolve({ installed: false, version: null, path: ffDir });
+        } else {
+          const firstLine = stdout.split('\n')[0] || '';
+          const match = firstLine.match(/ffmpeg version ([^\s]+)/i);
+          const version = match ? match[1] : 'Mevcut';
+          resolve({ installed: true, version, path: ffDir || 'Sistem PATH' });
+        }
+      });
+    });
+
+    const [ytdlp, ffmpeg] = await Promise.all([checkYt, checkFf]);
+    return { ytdlp, ffmpeg };
   }
 
   async getVideoInfo(url) {
+    const { ytPath } = getResolvedPaths();
+
     return new Promise((resolve, reject) => {
-      const args = ['--dump-json', '--no-download', '--flat-playlist', url];
+      const args = [
+        '--dump-json',
+        '--no-download',
+        '--flat-playlist',
+        '--no-warnings',
+        '--extractor-args', 'youtube:player_client=android,web',
+        url
+      ];
       let output = '';
       let errorOutput = '';
 
-      const process = spawn(ytdlpPath, args, { shell: true });
-
-      process.stdout.on('data', (data) => {
-        output += data.toString();
+      const proc = spawn(ytPath, args, {
+        shell: false,
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
       });
 
-      process.stderr.on('data', (data) => {
-        errorOutput += data.toString();
+      proc.stdout.setEncoding('utf8');
+      proc.stderr.setEncoding('utf8');
+
+      proc.stdout.on('data', (data) => {
+        output += data;
       });
 
-      process.on('close', (code) => {
+      proc.stderr.on('data', (data) => {
+        errorOutput += data;
+      });
+
+      proc.on('close', (code) => {
         if (code !== 0) {
-          // Show more helpful error message
-          const cleanError = errorOutput.replace(/WARNING:.*\n/g, '').trim();
-          reject(new Error(cleanError || 'Video bilgisi alinamadi'));
+          let cleanError = errorOutput.replace(/WARNING:.*\n?/g, '').trim();
+          if (cleanError.includes('Sign in to confirm')) {
+            cleanError = 'YouTube bot koruması: Lütfen bağlantıyı kontrol edin veya daha sonra tekrar deneyin.';
+          } else if (cleanError.includes('Video unavailable')) {
+            cleanError = 'Bu video kullanılamıyor veya gizli.';
+          } else if (!cleanError) {
+            cleanError = 'Medya bilgisi alınamadı. Lütfen bağlantıyı kontrol edin.';
+          }
+          reject(new Error(cleanError));
           return;
         }
 
         try {
-          const lines = output.trim().split('\n');
+          const lines = output.trim().split('\n').filter(Boolean);
           const items = lines.map(line => JSON.parse(line));
 
           if (items.length === 1) {
             const info = items[0];
-            // Enhanced thumbnail extraction for various platforms
             let thumbnail = info.thumbnail;
             if (!thumbnail && info.thumbnails && info.thumbnails.length > 0) {
-              // Get the last (usually highest quality) thumbnail
               thumbnail = info.thumbnails[info.thumbnails.length - 1]?.url;
             }
             if (!thumbnail) {
-              // Fallback for some platforms
               thumbnail = info.display_url || info.video_url || '';
             }
 
             resolve({
               isPlaylist: false,
               id: info.id,
-              title: info.title || info.description?.substring(0, 50) || 'Video',
+              title: info.title || info.description?.substring(0, 50) || 'Medya Dosyası',
               thumbnail: thumbnail,
               duration: info.duration,
               uploader: info.uploader || info.channel || info.uploader_id || '',
               viewCount: info.view_count,
+              extractor: info.extractor_key || info.extractor || '',
               url: url
             });
           } else {
             resolve({
               isPlaylist: true,
-              title: items[0].playlist_title || 'Playlist',
-              thumbnail: items[0].thumbnails?.[0]?.url,
+              title: items[0].playlist_title || 'Çalma Listesi',
+              thumbnail: items[0].thumbnails?.[0]?.url || items[0].thumbnail,
               itemCount: items.length,
               items: items.map(item => ({
                 id: item.id,
                 title: item.title,
-                thumbnail: item.thumbnails?.[item.thumbnails?.length - 1]?.url,
+                thumbnail: item.thumbnails?.[item.thumbnails?.length - 1]?.url || item.thumbnail,
                 duration: item.duration,
                 url: item.url || item.webpage_url
               })),
@@ -129,90 +174,95 @@ class DownloadManager extends EventEmitter {
             });
           }
         } catch (e) {
-          reject(new Error('JSON parse hatasi: ' + e.message));
+          reject(new Error('Medya bilgisi işlenirken hata oluştu: ' + e.message));
         }
+      });
+
+      proc.on('error', (err) => {
+        reject(new Error('yt-dlp başlatılamadı: ' + err.message));
       });
     });
   }
 
   async download(options) {
     if (this.isDownloading) {
-      throw new Error('Zaten bir indirme devam ediyor');
+      throw new Error('Şu anda devam eden bir indirme var. Lütfen bitmesini bekleyin veya iptal edin.');
+    }
+
+    const { ytPath, ffDir } = getResolvedPaths();
+    const { url, type, quality, outputPath, title, customFilename } = options;
+
+    // Check if FFmpeg is required
+    const requiresFfmpeg = type === 'audio' || quality === 'best' || (typeof quality === 'number' && quality > 720);
+    if (requiresFfmpeg && !ffDir) {
+      // Check if ffmpeg exists in PATH as fallback
+      const hasSystemFfmpeg = await new Promise((res) => {
+        exec('ffmpeg -version', (err) => res(!err));
+      });
+      if (!hasSystemFfmpeg) {
+        throw new Error('MP3 veya yüksek kaliteli video indirmek için FFmpeg gereklidir. Lütfen Ayarlar sayfasından "FFmpeg Otomatik İndir" butonuna tıklayın.');
+      }
     }
 
     this.isDownloading = true;
-    const { url, type, quality, outputPath, title, customFilename } = options;
 
     return new Promise((resolve, reject) => {
-      // Determine output filename template
       let outputTemplate;
       if (customFilename && customFilename.trim()) {
-        // Use custom filename - sanitize Turkish chars and Windows-invalid chars
-        let safeName = customFilename
-          // Turkish uppercase to lowercase first
-          .replace(/İ/g, 'i').replace(/I/g, 'i')
-          .replace(/Ğ/g, 'g').replace(/ğ/g, 'g')
-          .replace(/Ü/g, 'u').replace(/ü/g, 'u')
-          .replace(/Ş/g, 's').replace(/ş/g, 's')
-          .replace(/Ö/g, 'o').replace(/ö/g, 'o')
-          .replace(/Ç/g, 'c').replace(/ç/g, 'c')
-          // Windows invalid chars
+        let safeName = customFilename.trim()
+          .replace(/İ/g, 'I').replace(/ı/g, 'i')
+          .replace(/Ğ/g, 'G').replace(/ğ/g, 'g')
+          .replace(/Ü/g, 'U').replace(/ü/g, 'u')
+          .replace(/Ş/g, 'S').replace(/ş/g, 's')
+          .replace(/Ö/g, 'O').replace(/ö/g, 'o')
+          .replace(/Ç/g, 'C').replace(/ç/g, 'c')
           .replace(/[<>:"/\\|?*]/g, '_');
         outputTemplate = path.join(outputPath, `${safeName}.%(ext)s`);
       } else {
         outputTemplate = path.join(outputPath, '%(title)s.%(ext)s');
       }
 
-      let args = [
+      const args = [
         '--newline',
         '--progress',
-        '--windows-filenames',  // Windows-safe filenames (handles Turkish chars)
+        '--windows-filenames',
+        '--no-warnings',
+        '--extractor-args', 'youtube:player_client=android,web',
         '-o', outputTemplate
       ];
 
-      // Add ffmpeg location if available
-      if (ffmpegPath) {
-        args.unshift('--ffmpeg-location', ffmpegPath);
+      if (ffDir) {
+        args.push('--ffmpeg-location', ffDir);
       }
 
       if (type === 'audio') {
-        // Audio only: extract audio and convert to mp3
-        args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
-      } else if (type === 'video') {
-        // Video: Prefer already-merged mp4, then merge with cleanup
+        args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0', '--embed-thumbnail');
+      } else {
+        // Video
         if (quality === 'best') {
-          // First try: single file mp4 with audio, then merge separate streams
-          args.push('-f', 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best');
+          args.push('-f', 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b');
         } else {
-          args.push('-f', `best[height<=${quality}][ext=mp4]/bestvideo[height<=${quality}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${quality}]+bestaudio/best`);
+          args.push('-f', `bv*[height<=${quality}][ext=mp4]+ba[ext=m4a]/b[height<=${quality}][ext=mp4]/bv*[height<=${quality}]+ba/b`);
         }
-        // Force output to mp4 format
         args.push('--merge-output-format', 'mp4');
-        // Use copy for speed (no re-encode), just remux
-        args.push('--postprocessor-args', 'ffmpeg:-c copy');
-        // CRITICAL: Clean up temp/intermediate files after merge
         args.push('--no-keep-video');
       }
 
       args.push(url);
 
-      // Spawn with UTF-8 encoding for Turkish character support
-      this.currentProcess = spawn(ytdlpPath, args, {
+      this.currentProcess = spawn(ytPath, args, {
         shell: false,
         env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
       });
 
-      // Set encoding to UTF-8 for proper Turkish character handling
       this.currentProcess.stdout.setEncoding('utf8');
       this.currentProcess.stderr.setEncoding('utf8');
 
       let lastProgress = 0;
       let outputFile = '';
+      let errorDetails = '';
 
-      this.currentProcess.stdout.on('data', (data) => {
-        const output = data; // Already UTF-8 string due to setEncoding
-
-        // Parse progress: 50.5% of 100.00MiB at 2.50MiB/s ETA 00:20
+      this.currentProcess.stdout.on('data', (output) => {
         const progressMatch = output.match(/(\d+\.?\d*)%/);
         const speedMatch = output.match(/at\s+(\d+\.?\d*)(Ki?B|Mi?B|Gi?B)\/s/i);
         const etaMatch = output.match(/ETA\s+(\d{2}:\d{2}(?::\d{2})?)/);
@@ -221,8 +271,6 @@ class DownloadManager extends EventEmitter {
           const progress = parseFloat(progressMatch[1]);
           if (progress !== lastProgress) {
             lastProgress = progress;
-
-            // Build enhanced progress data
             const progressData = {
               percent: progress,
               title: title,
@@ -230,17 +278,14 @@ class DownloadManager extends EventEmitter {
               eta: null
             };
 
-            // Parse speed
             if (speedMatch) {
               let speed = parseFloat(speedMatch[1]);
               const unit = speedMatch[2].toUpperCase();
-              // Convert to MB/s
               if (unit.startsWith('K')) speed /= 1024;
               if (unit.startsWith('G')) speed *= 1024;
               progressData.speed = speed.toFixed(2);
             }
 
-            // Parse ETA
             if (etaMatch) {
               progressData.eta = etaMatch[1];
             }
@@ -250,23 +295,17 @@ class DownloadManager extends EventEmitter {
         }
 
         const destMatch = output.match(/\[download\] Destination: (.+)/);
-        if (destMatch) {
-          outputFile = destMatch[1].trim();
-        }
+        if (destMatch) outputFile = destMatch[1].trim();
 
         const mergeMatch = output.match(/\[Merger\] Merging formats into "(.+)"/);
-        if (mergeMatch) {
-          outputFile = mergeMatch[1].trim();
-        }
+        if (mergeMatch) outputFile = mergeMatch[1].trim();
 
         const extractMatch = output.match(/\[ExtractAudio\] Destination: (.+)/);
-        if (extractMatch) {
-          outputFile = extractMatch[1].trim();
-        }
+        if (extractMatch) outputFile = extractMatch[1].trim();
       });
 
       this.currentProcess.stderr.on('data', (data) => {
-        console.error('yt-dlp stderr:', data); // Already UTF-8 string
+        errorDetails += data;
       });
 
       this.currentProcess.on('close', (code) => {
@@ -274,27 +313,41 @@ class DownloadManager extends EventEmitter {
         this.currentProcess = null;
 
         if (code === 0) {
-          this.emit('complete', { success: true, filePath: outputFile || outputPath });
-          resolve({ success: true, filePath: outputFile });
+          const finalPath = outputFile || outputPath;
+          this.emit('complete', { success: true, filePath: finalPath });
+          resolve({ success: true, filePath: finalPath });
         } else {
-          const error = new Error('Indirme basarisiz oldu');
-          this.emit('error', error.message);
+          let cleanErr = errorDetails.replace(/WARNING:.*\n?/g, '').trim();
+          if (cleanErr.includes('ffprobe and ffmpeg not found')) {
+            cleanErr = 'FFmpeg bulunamadı! Lütfen Ayarlar sayfasından FFmpeg otomatik yüklemesini yapın.';
+          } else if (cleanErr.includes('Sign in to confirm')) {
+            cleanErr = 'YouTube bot doğrulaması talep etti. Lütfen birkaç dakika sonra tekrar deneyin.';
+          } else if (!cleanErr) {
+            cleanErr = 'İndirme işlemi başarısız oldu (Hata kodu: ' + code + ')';
+          }
+          const error = new Error(cleanErr);
+          this.emit('error', cleanErr);
           reject(error);
         }
       });
 
-      this.currentProcess.on('error', (error) => {
+      this.currentProcess.on('error', (err) => {
         this.isDownloading = false;
         this.currentProcess = null;
-        this.emit('error', error.message);
-        reject(error);
+        this.emit('error', err.message);
+        reject(err);
       });
     });
   }
 
   cancel() {
     if (this.currentProcess) {
-      this.currentProcess.kill('SIGTERM');
+      const pid = this.currentProcess.pid;
+      if (process.platform === 'win32') {
+        exec(`taskkill /pid ${pid} /T /F`, () => {});
+      } else {
+        this.currentProcess.kill('SIGTERM');
+      }
       this.isDownloading = false;
       this.currentProcess = null;
       this.emit('cancelled');
@@ -307,11 +360,12 @@ let downloadManager;
 const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1200,
-    height: 800,
-    minWidth: 900,
-    minHeight: 600,
+    height: 820,
+    minWidth: 920,
+    minHeight: 650,
     frame: false,
-    backgroundColor: '#0f0f0f',
+    title: 'Media Downloader',
+    backgroundColor: '#0d0e12',
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       contextIsolation: true,
@@ -321,23 +375,54 @@ const createWindow = () => {
 
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
-  // Dev tools only in development
   if (process.env.NODE_ENV === 'development') {
     mainWindow.webContents.openDevTools();
   }
 };
 
 app.whenReady().then(() => {
+  // Ensure bin directory exists
+  if (!fs.existsSync(appDataDir)) {
+    try {
+      fs.mkdirSync(appDataDir, { recursive: true });
+    } catch (e) {
+      console.error('Failed to create bin dir:', e);
+    }
+  }
+
   // Initialize store
   store = new Store({
     defaults: {
       theme: 'dark',
       downloadPath: app.getPath('downloads'),
-      history: []
+      videoPath: app.getPath('downloads'),
+      audioPath: app.getPath('downloads'),
+      history: [],
+      stats: { total: 0, videos: 0, audios: 0 }
     }
   });
 
   downloadManager = new DownloadManager();
+
+  // ATTACH LISTENERS ONCE - FIXES MEMORY LEAK & REPEATED NOTIFICATIONS
+  downloadManager.on('progress', (progress) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('download-progress', progress);
+    }
+  });
+
+  downloadManager.on('complete', (result) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('download-complete', result);
+    }
+  });
+
+  downloadManager.on('error', (errorMsg) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('download-error', errorMsg);
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {
@@ -357,10 +442,11 @@ app.on('window-all-closed', () => {
 
 // Window controls
 ipcMain.on('window-minimize', () => {
-  mainWindow.minimize();
+  if (mainWindow) mainWindow.minimize();
 });
 
 ipcMain.on('window-maximize', () => {
+  if (!mainWindow) return;
   if (mainWindow.isMaximized()) {
     mainWindow.unmaximize();
   } else {
@@ -373,20 +459,14 @@ ipcMain.on('window-close', () => {
 });
 
 // Theme
-ipcMain.handle('get-theme', () => {
-  return store.get('theme');
-});
-
+ipcMain.handle('get-theme', () => store.get('theme'));
 ipcMain.handle('set-theme', (event, theme) => {
   store.set('theme', theme);
   return theme;
 });
 
 // Store operations
-ipcMain.handle('get-store-value', (event, key) => {
-  return store.get(key);
-});
-
+ipcMain.handle('get-store-value', (event, key) => store.get(key));
 ipcMain.handle('set-store-value', (event, key, value) => {
   store.set(key, value);
   return true;
@@ -395,7 +475,7 @@ ipcMain.handle('set-store-value', (event, key, value) => {
 ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],
-    title: 'Klasör Seçin'
+    title: 'İndirme Klasörünü Seçin'
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
@@ -417,13 +497,14 @@ ipcMain.handle('get-video-info', async (event, url) => {
 // Download
 ipcMain.handle('start-download', async (event, options) => {
   try {
-    const downloadPath = options.outputPath || store.get('downloadPath');
+    const downloadPath = options.outputPath || store.get('downloadPath') || app.getPath('downloads');
 
-    downloadManager.on('progress', (progress) => {
-      mainWindow.webContents.send('download-progress', progress);
-    });
-
-    downloadManager.on('complete', (result) => {
+    // Start download without re-attaching listeners
+    downloadManager.download({
+      ...options,
+      outputPath: downloadPath
+    }).then((result) => {
+      // Add to history
       const history = store.get('history') || [];
       history.unshift({
         id: Date.now(),
@@ -436,17 +517,8 @@ ipcMain.handle('start-download', async (event, options) => {
         filePath: result.filePath
       });
       store.set('history', history.slice(0, 100));
-
-      mainWindow.webContents.send('download-complete', result);
-    });
-
-    downloadManager.on('error', (error) => {
-      mainWindow.webContents.send('download-error', error);
-    });
-
-    await downloadManager.download({
-      ...options,
-      outputPath: downloadPath
+    }).catch((err) => {
+      console.error('Download execution error:', err.message);
     });
 
     return { success: true };
@@ -461,10 +533,7 @@ ipcMain.handle('cancel-download', () => {
 });
 
 // History
-ipcMain.handle('get-history', () => {
-  return store.get('history') || [];
-});
-
+ipcMain.handle('get-history', () => store.get('history') || []);
 ipcMain.handle('clear-history', () => {
   store.set('history', []);
   return { success: true };
@@ -479,29 +548,50 @@ ipcMain.handle('delete-history-item', (event, id) => {
 
 // File operations
 ipcMain.handle('open-file', (event, filePath) => {
-  shell.openPath(filePath);
+  if (filePath && fs.existsSync(filePath)) {
+    shell.openPath(filePath);
+  }
 });
 
 ipcMain.handle('open-folder', (event, filePath) => {
-  shell.showItemInFolder(filePath);
+  if (filePath && fs.existsSync(filePath)) {
+    shell.showItemInFolder(filePath);
+  } else {
+    const defaultFolder = store.get('downloadPath') || app.getPath('downloads');
+    shell.openPath(defaultFolder);
+  }
 });
 
-// yt-dlp check
+// Engine status (yt-dlp and ffmpeg)
+ipcMain.handle('check-engines', async () => {
+  return await downloadManager.checkEngines();
+});
+
+// Backward compatibility check-ytdlp
 ipcMain.handle('check-ytdlp', async () => {
-  return await downloadManager.checkYtDlp();
+  const engines = await downloadManager.checkEngines();
+  return engines.ytdlp;
 });
 
 // Get app version
-ipcMain.handle('get-app-version', () => {
-  return APP_VERSION;
+ipcMain.handle('get-app-version', () => APP_VERSION);
+
+// Get yt-dlp & ffmpeg paths
+ipcMain.handle('get-engine-paths', () => {
+  const { ytPath, ffDir } = getResolvedPaths();
+  return {
+    ytDlpPath: ytPath,
+    ffmpegPath: ffDir ? path.join(ffDir, 'ffmpeg.exe') : null,
+    appDataDir: appDataDir
+  };
 });
 
-// Get yt-dlp path info
 ipcMain.handle('get-ytdlp-path', () => {
+  const { ytPath } = getResolvedPaths();
   return {
-    path: ytdlpPath,
+    path: ytPath,
     appDataDir: appDataDir,
-    isSystemPath: ytdlpPath === 'yt-dlp'
+    isSystemPath: ytPath === 'yt-dlp'
   };
 });
 
@@ -511,7 +601,7 @@ ipcMain.handle('check-for-updates', () => {
     const options = {
       hostname: 'api.github.com',
       path: `/repos/${GITHUB_REPO}/releases/latest`,
-      headers: { 'User-Agent': 'YouTubeIndirici' }
+      headers: { 'User-Agent': 'MediaDownloader/1.5.0' }
     };
 
     https.get(options, (res) => {
@@ -523,7 +613,6 @@ ipcMain.handle('check-for-updates', () => {
           const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
           const hasUpdate = compareVersions(latestVersion, APP_VERSION) > 0;
 
-          // Find Setup.exe asset URL
           let setupUrl = null;
           if (release.assets && release.assets.length > 0) {
             const setupAsset = release.assets.find(a =>
@@ -539,7 +628,7 @@ ipcMain.handle('check-for-updates', () => {
             currentVersion: APP_VERSION,
             latestVersion,
             downloadUrl: release.html_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
-            setupUrl: setupUrl, // Direct download URL for Setup.exe
+            setupUrl: setupUrl,
             releaseNotes: release.body || ''
           });
         } catch (e) {
@@ -552,7 +641,6 @@ ipcMain.handle('check-for-updates', () => {
   });
 });
 
-// Version comparison helper
 function compareVersions(a, b) {
   const pa = a.split('.').map(Number);
   const pb = b.split('.').map(Number);
@@ -571,12 +659,10 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
       return;
     }
 
-    // Download to temp folder
     const tempDir = app.getPath('temp');
-    const setupPath = path.join(tempDir, 'YouTubeIndirici-Update-Setup.exe');
+    const setupPath = path.join(tempDir, 'MediaDownloader-Update-Setup.exe');
+    const file = fs.createWriteStream(setupPath, { highWaterMark: 1024 * 1024 });
 
-    // Use high watermark for faster downloads
-    const file = fs.createWriteStream(setupPath, { highWaterMark: 1024 * 1024 }); // 1MB buffer
     let totalBytes = 0;
     let downloadedBytes = 0;
 
@@ -588,15 +674,13 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
         hostname: parsedUrl.hostname,
         path: parsedUrl.pathname + parsedUrl.search,
         headers: {
-          'User-Agent': 'YouTubeIndirici/1.2.7',
+          'User-Agent': `MediaDownloader/${APP_VERSION}`,
           'Accept': '*/*',
-          'Accept-Encoding': 'identity', // No compression for faster streaming
           'Connection': 'keep-alive'
         }
       };
 
       protocol.get(options, (response) => {
-        // Handle redirect
         if (response.statusCode === 302 || response.statusCode === 301) {
           download(response.headers.location);
           return;
@@ -604,10 +688,9 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
 
         totalBytes = parseInt(response.headers['content-length'], 10) || 0;
 
-        // Optimize streaming
         response.on('data', (chunk) => {
           downloadedBytes += chunk.length;
-          if (totalBytes > 0) {
+          if (totalBytes > 0 && mainWindow && !mainWindow.isDestroyed()) {
             const percent = Math.round((downloadedBytes / totalBytes) * 100);
             const speed = (downloadedBytes / 1024 / 1024).toFixed(2);
             mainWindow.webContents.send('update-download-progress', {
@@ -623,16 +706,10 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
 
         file.on('finish', () => {
           file.close();
-
-          // Run the installer and quit the app
-          const { exec } = require('child_process');
           exec(`"${setupPath}"`, (error) => {
-            if (error) {
-              resolve({ success: false, error: error.message });
-            }
+            if (error) resolve({ success: false, error: error.message });
           });
 
-          // Quit after short delay to let installer start
           setTimeout(() => {
             app.isQuitting = true;
             app.quit();
@@ -641,7 +718,7 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
           resolve({ success: true, path: setupPath });
         });
       }).on('error', (e) => {
-        fs.unlink(setupPath, () => { });
+        fs.unlink(setupPath, () => {});
         resolve({ success: false, error: e.message });
       });
     };
@@ -653,19 +730,18 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
 // Download yt-dlp to AppData
 ipcMain.handle('download-ytdlp', async () => {
   return new Promise((resolve) => {
-    // Create AppData bin directory if not exists
     if (!fs.existsSync(appDataDir)) {
       fs.mkdirSync(appDataDir, { recursive: true });
     }
 
     const ytdlpUrl = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
     const destPath = path.join(appDataDir, 'yt-dlp.exe');
+    const tempPath = destPath + '.tmp';
 
-    const file = fs.createWriteStream(destPath);
+    const file = fs.createWriteStream(tempPath);
 
     const download = (url) => {
       https.get(url, (response) => {
-        // Handle redirect
         if (response.statusCode === 302 || response.statusCode === 301) {
           download(response.headers.location);
           return;
@@ -673,13 +749,20 @@ ipcMain.handle('download-ytdlp', async () => {
 
         response.pipe(file);
         file.on('finish', () => {
-          file.close();
-          // Update ytdlpPath to use the new location
-          ytdlpPath = destPath;
-          resolve({ success: true, path: destPath });
+          file.close(() => {
+            try {
+              if (fs.existsSync(destPath)) {
+                fs.unlinkSync(destPath);
+              }
+              fs.renameSync(tempPath, destPath);
+              resolve({ success: true, path: destPath });
+            } catch (err) {
+              resolve({ success: false, error: err.message });
+            }
+          });
         });
       }).on('error', (e) => {
-        fs.unlink(destPath, () => { });
+        fs.unlink(tempPath, () => {});
         resolve({ success: false, error: e.message });
       });
     };
@@ -688,8 +771,83 @@ ipcMain.handle('download-ytdlp', async () => {
   });
 });
 
+// Download and unpack FFmpeg to AppData
+ipcMain.handle('download-ffmpeg', async () => {
+  return new Promise((resolve) => {
+    if (!fs.existsSync(appDataDir)) {
+      fs.mkdirSync(appDataDir, { recursive: true });
+    }
+
+    const ffmpegZipUrl = 'https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip';
+    const zipPath = path.join(appDataDir, 'ffmpeg-temp.zip');
+    const file = fs.createWriteStream(zipPath);
+
+    let totalBytes = 0;
+    let downloadedBytes = 0;
+
+    const download = (url) => {
+      https.get(url, (response) => {
+        if (response.statusCode === 302 || response.statusCode === 301) {
+          download(response.headers.location);
+          return;
+        }
+
+        totalBytes = parseInt(response.headers['content-length'], 10) || 0;
+
+        response.on('data', (chunk) => {
+          downloadedBytes += chunk.length;
+          if (totalBytes > 0 && mainWindow && !mainWindow.isDestroyed()) {
+            const percent = Math.round((downloadedBytes / totalBytes) * 100);
+            mainWindow.webContents.send('ffmpeg-download-progress', {
+              percent,
+              downloadedBytes,
+              totalBytes
+            });
+          }
+        });
+
+        response.pipe(file);
+
+        file.on('finish', () => {
+          file.close(() => {
+            // Extract ffmpeg.exe and ffprobe.exe using tar.exe or powershell
+            const extractCmd = `tar -xf "${zipPath}" --strip-components=2 -C "${appDataDir}" "*/bin/ffmpeg.exe" "*/bin/ffprobe.exe"`;
+            exec(extractCmd, (tarErr) => {
+              // Clean up zip
+              try { fs.unlinkSync(zipPath); } catch (e) {}
+
+              if (tarErr) {
+                // Fallback to PowerShell Expand-Archive
+                const psCmd = `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${appDataDir}\\temp_ff' -Force; Copy-Item '${appDataDir}\\temp_ff\\*\\bin\\*.exe' -Destination '${appDataDir}' -Force; Remove-Item '${appDataDir}\\temp_ff' -Recurse -Force"`;
+                exec(psCmd, (psErr) => {
+                  if (fs.existsSync(appDataFfmpeg)) {
+                    resolve({ success: true, path: appDataFfmpeg });
+                  } else {
+                    resolve({ success: false, error: 'FFmpeg arşivden çıkarılamadı: ' + (psErr ? psErr.message : tarErr.message) });
+                  }
+                });
+                return;
+              }
+
+              if (fs.existsSync(appDataFfmpeg)) {
+                resolve({ success: true, path: appDataFfmpeg });
+              } else {
+                resolve({ success: false, error: 'ffmpeg.exe başarıyla oluşturulamadı' });
+              }
+            });
+          });
+        });
+      }).on('error', (e) => {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        resolve({ success: false, error: e.message });
+      });
+    };
+
+    download(ffmpegZipUrl);
+  });
+});
+
 // Open external URL
 ipcMain.handle('open-external', (event, url) => {
   shell.openExternal(url);
 });
-

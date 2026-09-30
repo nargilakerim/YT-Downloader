@@ -1,407 +1,736 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Medya İndirici</title>
+  <title>Media Downloader</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 
 <body>
-  <!-- Baslik Cubugu (Frameless window icin) -->
+  <!-- Başlık Çubuğu (Frameless Titlebar) -->
   <header class="titlebar">
     <div class="titlebar-drag">
-      <div class="app-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
-            fill="currentColor" />
-        </svg>
-        <span>Medya İndirici</span>
+      <div class="app-brand">
+        <div class="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#brand-grad)" />
+            <path d="M2 17L12 22L22 17" stroke="url(#brand-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 12L12 17L22 12" stroke="url(#brand-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="brand-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#8B5CF6"/>
+                <stop offset="1" stop-color="#EC4899"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="brand-title">Media Downloader</span>
+        <span class="brand-badge">PRO v1.5</span>
+      </div>
+
+      <!-- Motor Hazır Durum Rozetleri -->
+      <div class="engine-pills">
+        <div class="engine-pill" id="pill-ytdlp" title="yt-dlp Motor Durumu">
+          <span class="pill-dot"></span>
+          <span class="pill-name">yt-dlp</span>
+        </div>
+        <div class="engine-pill" id="pill-ffmpeg" title="FFmpeg / MP3 Motor Durumu">
+          <span class="pill-dot"></span>
+          <span class="pill-name">FFmpeg</span>
+        </div>
       </div>
     </div>
+
+    <!-- Pencere Kontrolleri -->
     <div class="titlebar-controls">
       <button id="btn-minimize" class="titlebar-btn" title="Simge Durumuna Küçült">
-        <svg width="12" height="12" viewBox="0 0 12 12">
-          <path d="M1 6h10" stroke="currentColor" stroke-width="1.5" />
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <path d="M1 5h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
         </svg>
       </button>
-      <button id="btn-maximize" class="titlebar-btn" title="Ekranı Kapla">
-        <svg width="12" height="12" viewBox="0 0 12 12">
-          <rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="1.5" fill="none" />
+      <button id="btn-maximize" class="titlebar-btn" title="Ekranı Kapla / Geri Yükle">
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <rect x="1" y="1" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none" />
         </svg>
       </button>
       <button id="btn-close" class="titlebar-btn titlebar-btn-close" title="Kapat">
-        <svg width="12" height="12" viewBox="0 0 12 12">
-          <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.5" />
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
         </svg>
       </button>
     </div>
   </header>
 
-  <div class="app-container">
-    <!-- Sol Kenar Cubugu -->
-    <nav class="sidebar">
-      <button class="nav-btn active" data-page="home">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path
-            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-        <span>Ana Sayfa</span>
-      </button>
-      <button class="nav-btn" data-page="history">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span>Geçmiş</span>
-      </button>
-      <button class="nav-btn" data-page="settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path
-            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-        <span>Ayarlar</span>
-      </button>
+  <div class="app-layout">
+    <!-- Sol Kenar Çubuğu (Sidebar) -->
+    <aside class="sidebar">
+      <div class="nav-group">
+        <button class="nav-btn active" data-page="home">
+          <div class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+          </div>
+          <span>İndirici</span>
+        </button>
 
-      <div class="sidebar-footer">
-        <button id="theme-toggle" class="theme-btn" title="Tema Değiştir">
-          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2">
-            <path
-              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2">
-            <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
+        <button class="nav-btn" data-page="history">
+          <div class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <span>Geçmiş</span>
+          <span class="nav-badge" id="history-count-badge">0</span>
+        </button>
+
+        <button class="nav-btn" data-page="settings">
+          <div class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </div>
+          <span>Ayarlar</span>
         </button>
       </div>
-      <div class="app-footer"
-        style="text-align: center; font-size: 10px; color: var(--text-muted); margin-top: 10px; opacity: 0.6;">
-        made by nargilakerim • helped by AI
-      </div>
-    </nav>
 
-    <!-- Ana Icerik -->
-    <main class="main-content">
-      <!-- Ana Sayfa -->
-      <section id="page-home" class="page active">
-        <div class="page-header">
-          <h1 class="logo-text">Medya İndir</h1>
-          <p class="logo-subtext">YouTube, Instagram, TikTok, Twitter ve daha fazlasından indirin</p>
-        </div>
-
-        <!-- URL Giris Alani -->
-        <div class="url-input-container">
-          <div class="url-input-wrapper">
-            <svg class="url-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2">
-              <path
-                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+      <div class="sidebar-bottom">
+        <div class="storage-mini-card">
+          <div class="storage-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
-            <input type="text" id="url-input" placeholder="https://www.instagram.com/p/..." spellcheck="false"
-              autocomplete="off">
-            <button id="btn-fetch" class="btn-primary">
-              <span class="btn-text">Getir</span>
-              <span class="btn-loader"></span>
-            </button>
+          </div>
+          <div class="storage-text">
+            <span class="storage-label">Kayıt Konumu</span>
+            <span class="storage-path" id="sidebar-download-path">İndirilenler</span>
           </div>
         </div>
 
-        <!-- Hata Mesaji -->
-        <div id="error-message" class="error-message hidden">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span id="error-text"></span>
+        <div class="sidebar-footer-actions">
+          <button id="theme-toggle" class="sidebar-action-btn" title="Tema Değiştir (Karanlık / Aydınlık)">
+            <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Ana İçerik Alanı -->
+    <main class="main-content">
+      <!-- 1. ANA SAYFA -->
+      <section id="page-home" class="page active">
+        <!-- Hero Header -->
+        <div class="hero-container">
+          <div class="hero-glow"></div>
+          <div class="hero-text-content">
+            <h1 class="hero-title">Herhangi Bir Medyayı <span class="gradient-text">Tek Tıkla İndirin</span></h1>
+            <p class="hero-subtitle">YouTube, Instagram Reels, TikTok, Twitter/X ve 1000'den fazla platformdan kayıpsız video ve MP3 çıkarın</p>
+          </div>
+
+          <!-- URL Arama & Giriş Alanı -->
+          <div class="search-box-card">
+            <div class="search-input-wrapper">
+              <div class="search-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+              </div>
+              <input type="text" id="url-input" placeholder="Video veya ses bağlantısını buraya yapıştırın (YouTube, Instagram, TikTok...)" spellcheck="false" autocomplete="off">
+              
+              <div class="search-actions">
+                <button id="btn-paste" class="btn-icon-subtle" title="Panodan Yapıştır (Ctrl+V)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                  </svg>
+                  <span>Yapıştır</span>
+                </button>
+                <button id="btn-clear" class="btn-icon-subtle hidden" title="Temizle">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+                <button id="btn-fetch" class="btn-gradient">
+                  <span class="btn-text">Bilgileri Getir</span>
+                  <span class="btn-loader"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Desteklenen Platform Rozetleri -->
+          <div class="platforms-bar">
+            <span class="platforms-label">Popüler Platformlar:</span>
+            <div class="platforms-list">
+              <span class="platform-chip yt"><span class="chip-dot"></span>YouTube</span>
+              <span class="platform-chip ig"><span class="chip-dot"></span>Instagram</span>
+              <span class="platform-chip tt"><span class="chip-dot"></span>TikTok</span>
+              <span class="platform-chip tw"><span class="chip-dot"></span>X / Twitter</span>
+              <span class="platform-chip fb"><span class="chip-dot"></span>Facebook</span>
+              <span class="platform-chip sc"><span class="chip-dot"></span>SoundCloud</span>
+              <span class="platform-chip twt"><span class="chip-dot"></span>Twitch</span>
+              <span class="platform-chip rd"><span class="chip-dot"></span>Reddit</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Video Bilgi Karti -->
-        <div id="video-info" class="video-info hidden">
-          <div class="video-thumbnail-container">
-            <img id="video-thumbnail" src="" alt="Video Thumbnail">
-            <div class="video-duration" id="video-duration"></div>
+        <!-- Hata Bildirim Kartı -->
+        <div id="error-message" class="error-banner hidden">
+          <div class="error-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
           </div>
-          <div class="video-details">
-            <h2 id="video-title"></h2>
-            <div class="video-meta">
-              <span id="video-uploader"></span>
-              <span class="meta-separator">•</span>
-              <span id="video-views"></span>
+          <div class="error-content">
+            <div class="error-title">İşlem Başarısız Oldu</div>
+            <div id="error-text" class="error-desc"></div>
+          </div>
+          <button id="btn-error-close" class="btn-banner-close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Video Bilgi & İndirme Kartı -->
+        <div id="video-info" class="media-card hidden">
+          <div class="media-card-grid">
+            <!-- Sol: Önizleme Görseli -->
+            <div class="media-preview-box">
+              <img id="video-thumbnail" src="" alt="Video Küçük Resmi">
+              <div class="media-duration" id="video-duration">--:--</div>
+              <div class="media-platform-badge" id="media-platform-badge">Medya</div>
             </div>
 
-            <!-- Indirme Secenekleri -->
-            <div class="download-options">
-              <div class="option-group">
-                <label>İndirme Türü</label>
-                <div class="radio-group">
-                  <label class="radio-option">
+            <!-- Sağ: Detaylar & Seçenekler -->
+            <div class="media-details-box">
+              <h2 id="video-title" class="media-title">Video Başlığı Yükleniyor...</h2>
+              
+              <div class="media-meta-row">
+                <span class="meta-item author">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <span id="video-uploader">-</span>
+                </span>
+                <span class="meta-separator">•</span>
+                <span class="meta-item views">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <span id="video-views">-</span>
+                </span>
+              </div>
+
+              <!-- İndirme Format Seçicisi (Segmented Cards) -->
+              <div class="format-selection-section">
+                <label class="section-label">İndirme Formatı</label>
+                <div class="format-cards-grid">
+                  <label class="format-card active">
                     <input type="radio" name="download-type" value="video" checked>
-                    <span class="radio-custom"></span>
-                    <span>Video (MP4)</span>
+                    <div class="format-card-inner">
+                      <div class="format-icon video-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polygon points="23 7 16 12 23 17 23 7"/>
+                          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                        </svg>
+                      </div>
+                      <div class="format-info">
+                        <span class="format-name">Video (MP4)</span>
+                        <span class="format-desc">Tam çözünürlük & ses</span>
+                      </div>
+                    </div>
                   </label>
-                  <label class="radio-option">
+
+                  <label class="format-card">
                     <input type="radio" name="download-type" value="audio">
-                    <span class="radio-custom"></span>
-                    <span>Ses (MP3)</span>
+                    <div class="format-card-inner">
+                      <div class="format-icon audio-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M9 18V5l12-2v13"/>
+                          <circle cx="6" cy="18" r="3"/>
+                          <circle cx="18" cy="16" r="3"/>
+                        </svg>
+                      </div>
+                      <div class="format-info">
+                        <span class="format-name">Ses (MP3)</span>
+                        <span class="format-desc">Yüksek kalite 320kbps</span>
+                      </div>
+                    </div>
                   </label>
                 </div>
               </div>
 
-              <div class="option-group" id="quality-group">
-                <label>Kalite</label>
-                <select id="quality-select">
-                  <option value="best">En İyi Kalite</option>
-                  <option value="1080">1080p (Full HD)</option>
-                  <option value="720">720p (HD)</option>
-                  <option value="480">480p</option>
-                  <option value="360">360p</option>
-                </select>
+              <!-- Video Çözünürlük Seçici -->
+              <div id="quality-group" class="option-row">
+                <label class="section-label" for="quality-select">Çözünürlük Kalitesi</label>
+                <div class="select-wrapper">
+                  <select id="quality-select" class="custom-select">
+                    <option value="best">🚀 En Yüksek Kalite (Otomatik En İyi - 4K/1080p)</option>
+                    <option value="2160">4K Ultra HD (2160p)</option>
+                    <option value="1440">2K QHD (1440p)</option>
+                    <option value="1080" selected>Full HD (1080p)</option>
+                    <option value="720">HD (720p)</option>
+                    <option value="480">Standart (480p)</option>
+                    <option value="360">Düşük Boyut (360p)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- İsteğe Bağlı Dosya Adı Girişi -->
+              <div class="option-row">
+                <label class="section-label" for="filename-input">Özel Dosya Adı <span class="label-optional">(İsteğe bağlı)</span></label>
+                <input type="text" id="filename-input" class="custom-input" placeholder="Boş bırakılırsa orijinal başlık kullanılır">
+              </div>
+
+              <!-- İndir Butonu -->
+              <div class="action-buttons-row">
+                <button id="btn-download" class="btn-gradient btn-large">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  <span>Hemen İndir</span>
+                </button>
               </div>
             </div>
-
-            <!-- Filename Editor -->
-            <div class="filename-editor">
-              <label>Dosya Adı (isteğe bağlı)</label>
-              <input type="text" id="filename-input" placeholder="Varsayılan: Video başlığı" autocomplete="off">
-            </div>
-
-            <!-- Indirme Butonu -->
-            <button id="btn-download" class="btn-download">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span>İndir</span>
-            </button>
           </div>
         </div>
 
-        <!-- Playlist Bilgi Karti -->
-        <div id="playlist-info" class="playlist-info hidden">
+        <!-- Çalma Listesi (Playlist) Kartı -->
+        <div id="playlist-info" class="media-card playlist-card hidden">
           <div class="playlist-header">
-            <img id="playlist-thumbnail" src="" alt="Playlist Thumbnail">
-            <div class="playlist-details">
-              <h2 id="playlist-title"></h2>
-              <p id="playlist-count"></p>
+            <div class="playlist-preview-mini">
+              <img id="playlist-thumbnail" src="" alt="Playlist">
+              <span id="playlist-count" class="badge-count">0 video</span>
+            </div>
+            <div class="playlist-title-info">
+              <span class="badge-pill">Çalma Listesi</span>
+              <h2 id="playlist-title">Çalma Listesi</h2>
             </div>
           </div>
 
-          <div class="playlist-options">
-            <div class="option-group">
-              <label>İndirme Türü</label>
-              <div class="radio-group">
-                <label class="radio-option">
-                  <input type="radio" name="playlist-type" value="video" checked>
-                  <span class="radio-custom"></span>
-                  <span>Video (MP4)</span>
-                </label>
-                <label class="radio-option">
-                  <input type="radio" name="playlist-type" value="audio">
-                  <span class="radio-custom"></span>
-                  <span>Ses (MP3)</span>
-                </label>
-              </div>
+          <div class="playlist-download-options">
+            <div class="format-cards-grid">
+              <label class="format-card active">
+                <input type="radio" name="playlist-type" value="video" checked>
+                <div class="format-card-inner">
+                  <div class="format-icon video-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="23 7 16 12 23 17 23 7"/>
+                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                    </svg>
+                  </div>
+                  <span>Tüm Videolar (MP4)</span>
+                </div>
+              </label>
+
+              <label class="format-card">
+                <input type="radio" name="playlist-type" value="audio">
+                <div class="format-card-inner">
+                  <div class="format-icon audio-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M9 18V5l12-2v13"/>
+                      <circle cx="6" cy="18" r="3"/>
+                      <circle cx="18" cy="16" r="3"/>
+                    </svg>
+                  </div>
+                  <span>Tüm Parçalar (MP3)</span>
+                </div>
+              </label>
             </div>
 
-            <button id="btn-download-playlist" class="btn-download">
+            <button id="btn-download-playlist" class="btn-gradient btn-large">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              <span>Tüm Playlist'i İndir</span>
+              <span>Listeyi İndirmeye Başla</span>
             </button>
           </div>
 
-          <div class="playlist-items" id="playlist-items"></div>
+          <div class="playlist-preview-list" id="playlist-items"></div>
         </div>
 
-        <!-- Indirme Ilerleme -->
-        <div id="download-progress" class="download-progress hidden">
-          <div class="progress-header">
-            <span class="progress-title" id="progress-title">İndiriliyor...</span>
-            <button id="btn-cancel" class="btn-secondary hidden" style="margin-top: 10px;">İptal Et</button>
-          </div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
-          <div class="progress-info">
-            <span id="progress-percent">0%</span>
-            <span id="progress-speed" class="progress-speed"></span>
-            <span id="progress-eta" class="progress-eta"></span>
+        <!-- İndirme İlerleme Ekranı -->
+        <div id="download-progress" class="progress-floating-card hidden">
+          <div class="progress-card-inner">
+            <div class="progress-header-row">
+              <div class="progress-title-col">
+                <div class="progress-status-badge">
+                  <span class="pulsing-dot"></span>
+                  <span>İndiriliyor...</span>
+                </div>
+                <h3 id="progress-title" class="progress-media-title">Dosya indiriliyor</h3>
+              </div>
+              <span id="progress-percent" class="progress-big-percent">0%</span>
+            </div>
+
+            <div class="progress-track">
+              <div id="progress-fill" class="progress-bar-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="progress-footer-row">
+              <div class="progress-stats">
+                <span class="stat-badge">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                  </svg>
+                  <span id="progress-speed">-- MB/s</span>
+                </span>
+                <span class="stat-badge">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  <span id="progress-eta">Hesaplanıyor...</span>
+                </span>
+              </div>
+              <button id="btn-cancel" class="btn-cancel-download">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                <span>İptal Et</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Indirme Tamamlandi -->
-        <div id="download-complete" class="download-complete hidden">
-          <div class="complete-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+        <!-- İndirme Tamamlandı Ekranı -->
+        <div id="download-complete" class="complete-floating-card hidden">
+          <div class="complete-card-inner">
+            <div class="complete-success-icon">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <h2>İndirme Başarıyla Tamamlandı!</h2>
+            <p>Dosyanız belirlenen klasöre kaydedildi.</p>
+
+            <div class="complete-actions">
+              <button id="btn-open-file" class="btn-gradient">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <span>Dosyayı Aç</span>
+              </button>
+              <button id="btn-open-folder" class="btn-secondary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>Klasörde Göster</span>
+              </button>
+              <button id="btn-done" class="btn-subtle">Tamam</button>
+            </div>
           </div>
-          <h3>İndirme Tamamlandı!</h3>
-          <div class="complete-actions">
-            <button id="btn-open-file" class="btn-secondary">Dosyayı Aç</button>
-            <button id="btn-open-folder" class="btn-secondary">Klasörü Aç</button>
-            <button id="btn-done" class="btn-primary">Bitti</button>
+        </div>
+
+        <!-- Ana Sayfa Özellikler & İpuçları Grid (Sayfanın doluluğunu ve zenginliğini artıran kartlar) -->
+        <div id="home-features-grid" class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </div>
+            <h3>Kayıpsız 320kbps MP3</h3>
+            <p>FFmpeg motoru ile yüksek netlikte ses ayıklama ve gömülü albüm kapağı desteği.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon pink">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+            </div>
+            <h3>4K & 60fps MP4</h3>
+            <p>YouTube DASH video ve ses akışlarını kayıpsız birleştirip saf MP4 formatında kaydeder.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="8" y1="6" x2="21" y2="6"/>
+                <line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                <line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </div>
+            <h3>Toplu Çalma Listeleri</h3>
+            <p>Tek tek uğraşmayın, YouTube ve SoundCloud çalma listelerini tek tıkla arka arkaya indirin.</p>
           </div>
         </div>
       </section>
 
-      <!-- Gecmis Sayfasi -->
+      <!-- 2. GEÇMİŞ SAYFASI -->
       <section id="page-history" class="page">
-        <div class="page-header">
-          <h1>İndirme Geçmişi</h1>
-          <button id="btn-clear-history" class="btn-secondary btn-danger">
+        <div class="page-top-bar">
+          <div>
+            <h1 class="page-main-title">İndirme Geçmişi</h1>
+            <p class="page-main-sub">Daha önce indirdiğiniz tüm medya dosyaları</p>
+          </div>
+          <button id="btn-clear-history" class="btn-danger-outline">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
             </svg>
             <span>Geçmişi Temizle</span>
           </button>
         </div>
 
-        <!-- Statistics Card -->
-        <div class="stats-card" id="stats-card">
-          <div class="stat-item">
-            <div class="stat-value" id="stat-total">0</div>
-            <div class="stat-label">Toplam</div>
+        <!-- İstatistik Kartları -->
+        <div class="stats-overview-grid">
+          <div class="stat-box">
+            <span class="stat-number" id="stat-total">0</span>
+            <span class="stat-name">Toplam İndirme</span>
           </div>
-          <div class="stat-item">
-            <div class="stat-value" id="stat-videos">0</div>
-            <div class="stat-label">Video</div>
+          <div class="stat-box">
+            <span class="stat-number" id="stat-videos">0</span>
+            <span class="stat-name">İndirilen Video</span>
           </div>
-          <div class="stat-item">
-            <div class="stat-value" id="stat-audios">0</div>
-            <div class="stat-label">Müzik</div>
+          <div class="stat-box">
+            <span class="stat-number" id="stat-audios">0</span>
+            <span class="stat-name">İndirilen Müzik</span>
           </div>
         </div>
 
-        <!-- History Filter -->
-        <div class="history-filter">
-          <button class="filter-btn active" data-filter="all">Tümü</button>
-          <button class="filter-btn" data-filter="video">Videolar</button>
-          <button class="filter-btn" data-filter="audio">Müzikler</button>
+        <!-- Filtre Sekmeleri -->
+        <div class="filter-pills-row">
+          <button class="filter-pill active" data-filter="all">Tümü</button>
+          <button class="filter-pill" data-filter="video">Videolar (MP4)</button>
+          <button class="filter-pill" data-filter="audio">Ses Dosyaları (MP3)</button>
         </div>
 
-        <div id="history-list" class="history-list">
-          <!-- Dinamik olarak doldurulacak -->
-        </div>
+        <!-- Liste ve Boş Durum -->
+        <div id="history-list" class="history-cards-container"></div>
 
-        <div id="history-empty" class="empty-state hidden">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3>Henüz indirme yok</h3>
-          <p>İndirdiğiniz videolar burada görünecek</p>
+        <div id="history-empty" class="empty-state-card hidden">
+          <div class="empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <h3>Henüz İndirme Yapılmadı</h3>
+          <p>İndirdiğiniz videolar ve müzikler burada listelenecektir.</p>
         </div>
       </section>
 
-      <!-- Ayarlar Sayfasi -->
+      <!-- 3. AYARLAR SAYFASI -->
       <section id="page-settings" class="page">
-        <div class="page-header">
-          <h1>Ayarlar</h1>
+        <div class="page-top-bar">
+          <div>
+            <h1 class="page-main-title">Ayarlar & Motorlar</h1>
+            <p class="page-main-sub">İndirme yolları, motor durumları ve uygulama tercihleri</p>
+          </div>
         </div>
 
-        <div class="settings-list">
-          <div class="settings-item">
-            <div class="settings-info">
-              <h3>Video İndirme Konumu</h3>
-              <p id="video-download-path">Yükleniyor...</p>
-            </div>
-            <button id="btn-change-video-path" class="btn-secondary">Değiştir</button>
-          </div>
-
-          <div class="settings-item">
-            <div class="settings-info">
-              <h3>Ses (Müzik) İndirme Konumu</h3>
-              <p id="audio-download-path">Yükleniyor...</p>
-            </div>
-            <button id="btn-change-audio-path" class="btn-secondary">Değiştir</button>
-          </div>
-
-          <div class="settings-item">
-            <div class="settings-info">
-              <h3>Tema</h3>
-              <p>Uygulama görünümünü değiştirin</p>
-            </div>
-            <div class="theme-switcher">
-              <button class="theme-option" data-theme="dark">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        <div class="settings-sections-list">
+          <!-- İndirme Motorları Kartı (Önemli Yenilik) -->
+          <div class="settings-card highlight-card">
+            <div class="settings-card-header">
+              <div class="card-header-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
                 </svg>
-                Karanlık
-              </button>
-              <button class="theme-option" data-theme="light">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path
-                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </div>
+              <div>
+                <h2>İndirme Motorları (Core Engines)</h2>
+                <p>Uygulamanın video ve MP3 indirmesini sağlayan arka plan motorları</p>
+              </div>
+            </div>
+
+            <div class="engine-items-grid">
+              <!-- yt-dlp Durumu -->
+              <div class="engine-box">
+                <div class="engine-box-top">
+                  <div class="engine-title-wrap">
+                    <span class="engine-badge yt-badge">Downloader</span>
+                    <h3>yt-dlp Motoru</h3>
+                  </div>
+                  <span id="ytdlp-status-badge" class="status-indicator-badge">Kontrol ediliyor...</span>
+                </div>
+                <p class="engine-box-desc">Tüm video ve ses platformlarından veri çeken ana indirme motorudur.</p>
+                <div class="engine-actions">
+                  <button class="btn-secondary btn-small" id="btn-auto-download-ytdlp">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span>yt-dlp Güncelle / İndir</span>
+                  </button>
+                  <a href="https://github.com/yt-dlp/yt-dlp/releases" target="_blank" class="link-subtle" id="ytdlp-download-link">Releases ↗</a>
+                </div>
+              </div>
+
+              <!-- FFmpeg Durumu -->
+              <div class="engine-box">
+                <div class="engine-box-top">
+                  <div class="engine-title-wrap">
+                    <span class="engine-badge ff-badge">Converter</span>
+                    <h3>FFmpeg Motoru</h3>
+                  </div>
+                  <span id="ffmpeg-status-badge" class="status-indicator-badge">Kontrol ediliyor...</span>
+                </div>
+                <p class="engine-box-desc">MP3 dönüştürme ve 1080p/4K video akışlarını birleştirmek için zorunludur.</p>
+                <div class="engine-actions">
+                  <button class="btn-gradient btn-small" id="btn-auto-download-ffmpeg">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span>FFmpeg Otomatik Kur</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dosya Konumları -->
+          <div class="settings-card">
+            <h2>Kayıt Konumları</h2>
+            <div class="setting-row">
+              <div class="setting-info">
+                <h3>Video İndirme Konumu</h3>
+                <p id="video-download-path" class="path-display">Yükleniyor...</p>
+              </div>
+              <button id="btn-change-video-path" class="btn-secondary">Değiştir</button>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <h3>Ses (MP3) İndirme Konumu</h3>
+                <p id="audio-download-path" class="path-display">Yükleniyor...</p>
+              </div>
+              <button id="btn-change-audio-path" class="btn-secondary">Değiştir</button>
+            </div>
+          </div>
+
+          <!-- Görünüm / Tema -->
+          <div class="settings-card">
+            <h2>Görünüm</h2>
+            <div class="setting-row">
+              <div class="setting-info">
+                <h3>Tema</h3>
+                <p>Uygulama arayüz temasını seçin</p>
+              </div>
+              <div class="theme-segmented-control">
+                <button class="theme-option active" data-theme="dark">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                  </svg>
+                  <span>Karanlık</span>
+                </button>
+                <button class="theme-option" data-theme="light">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="23"/>
+                  </svg>
+                  <span>Aydınlık</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hakkında ve Güncellemeler -->
+          <div class="settings-card">
+            <h2>Uygulama Bilgisi</h2>
+            <div class="setting-row">
+              <div class="setting-info">
+                <h3 id="app-version-text">Media Downloader v1.5.0</h3>
+                <p>Açık kaynak medya indirme ve dönüştürme aracı</p>
+              </div>
+              <button class="btn-secondary" id="btn-check-updates">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
                 </svg>
-                Aydınlık
+                <span>Güncellemeleri Kontrol Et</span>
               </button>
             </div>
-          </div>
-
-          <div class="settings-item">
-            <div class="settings-info">
-              <h3>yt-dlp Durumu</h3>
-              <p id="ytdlp-status">Kontrol ediliyor...</p>
-            </div>
-            <button class="btn-primary" id="btn-auto-download-ytdlp" style="margin-right: 8px;">
-              Otomatik İndir
-            </button>
-            <a href="https://github.com/yt-dlp/yt-dlp/releases" target="_blank" class="btn-secondary"
-              id="ytdlp-download-link">
-              Manuel İndir
-            </a>
-          </div>
-
-          <div class="settings-item">
-            <div class="settings-info">
-              <h3>Uygulama Hakkında</h3>
-              <p id="app-version-text">YouTube İndirici v1.2.4</p>
-            </div>
-            <button class="btn-secondary" id="btn-check-updates">
-              Güncelleme Kontrol
-            </button>
           </div>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- Güncelleme Modal -->
-  <div id="update-modal" class="modal hidden">
-    <div class="modal-overlay"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>🚀 Güncelleme Mevcut!</h2>
+  <!-- Güncelleme Modalı -->
+  <div id="update-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-top">
+        <div class="modal-icon-glow">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
+        <h2>Yeni Bir Güncelleme Mevcut!</h2>
+        <span id="update-version-info" class="badge-pill">v1.5.0 → v1.5.1</span>
       </div>
-      <div class="modal-body">
-        <p>Yeni bir sürüm mevcut:</p>
-        <p><strong id="update-version-info">v1.2.4 → v1.2.5</strong></p>
-        <p class="update-notes" id="update-notes"></p>
+      <div class="modal-middle">
+        <p class="modal-notes" id="update-notes">Yeni özellikler ve hata düzeltmeleri içerir.</p>
       </div>
-      <div class="modal-footer">
-        <button class="btn-primary" id="btn-download-update">Güncellemeyi İndir</button>
+      <div class="modal-bottom">
+        <button class="btn-gradient btn-full" id="btn-download-update">Hemen Güncelle</button>
       </div>
     </div>
   </div>
 
-  <!-- yt-dlp İndirme Modal -->
-  <div id="ytdlp-download-modal" class="modal hidden">
-    <div class="modal-overlay"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>📥 yt-dlp İndiriliyor...</h2>
-      </div>
-      <div class="modal-body">
-        <p id="ytdlp-download-status">Lütfen bekleyin, yt-dlp indiriliyor...</p>
-        <div class="progress-bar">
-          <div class="progress-fill" id="ytdlp-progress" style="width: 0%"></div>
+  <!-- yt-dlp & FFmpeg İndirme Modalı -->
+  <div id="engine-download-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-top">
+        <div class="modal-icon-glow">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
         </div>
+        <h2 id="engine-modal-title">Motor Kuruluyor...</h2>
+        <p id="engine-modal-desc">Lütfen bekleyin, gerekli dosyalar indiriliyor ve kuruluyor.</p>
+      </div>
+      <div class="modal-middle">
+        <div class="progress-track">
+          <div class="progress-bar-fill" id="engine-modal-progress-fill" style="width: 0%"></div>
+        </div>
+        <div class="modal-progress-status" id="engine-modal-status-text">%0 İndiriliyor...</div>
       </div>
     </div>
   </div>

@@ -5,16 +5,16 @@ module.exports = {
   packagerConfig: {
     asar: true,
     icon: './assets/icon',
-    appName: 'YouTube Indirici',
-    name: 'YouTubeIndirici'
+    appName: 'Media Downloader',
+    name: 'MediaDownloader'
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
       config: {
-        name: 'YouTubeIndirici',
-        setupExe: 'YouTubeIndirici-Setup.exe',
+        name: 'MediaDownloader',
+        setupExe: 'MediaDownloader-Setup.exe',
         setupIcon: './assets/icon.ico'
       },
     },

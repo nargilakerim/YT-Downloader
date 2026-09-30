@@ -1,8 +1,8 @@
 {
-  "name": "youtube-indirici",
-  "productName": "Medya Indirici",
-  "version": "1.4.2",
-  "description": "YouTube, Instagram, TikTok ve daha fazlasi icin medya indirme uygulamasi",
+  "name": "media-downloader",
+  "productName": "Media Downloader",
+  "version": "1.5.0",
+  "description": "YouTube, Instagram, TikTok, Twitter ve daha fazlası için modern medya indirme uygulaması",
   "main": ".webpack/main",
   "scripts": {
     "start": "electron-forge start",
