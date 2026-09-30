@@ -387,7 +387,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     videoDuration.textContent = formatDuration(info.duration);
     videoUploader.textContent = info.uploader || 'Bilinmeyen Kanal';
     videoViews.textContent = formatViews(info.viewCount);
-    
+
     // Platform tespiti
     let platform = 'Medya';
     if (info.url.includes('youtube.com') || info.url.includes('youtu.be')) platform = 'YouTube';
@@ -541,6 +541,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressFill.style.width = `${pct}%`;
     progressPercent.textContent = `${pct}%`;
 
+    // EKLENEN LOG: Çalıştırılan komutu UI'da veya konsolda göster
+    if (progress.cmd) {
+      console.log('%c[YT-DLP Komutu]:', 'color: #00ffaa; font-weight: bold;', progress.cmd);
+      if (progressSpeed) {
+        progressSpeed.textContent = `Komut: ${progress.cmd.substring(0, 60)}...`;
+      }
+    }
     if (progress.speed && progressSpeed) {
       progressSpeed.textContent = `${progress.speed} MB/s`;
     }
@@ -930,6 +937,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.35);
-    } catch (_) {}
+    } catch (_) { }
   }
 });
