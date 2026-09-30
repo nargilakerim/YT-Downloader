@@ -232,21 +232,22 @@ class DownloadManager extends EventEmitter {
       ];
 
       if (ffDir) {
-        args.push('--ffmpeg-location', ffDir);
+        args.push('--ffmpeg-location');
+        args.push(ffDir);
       }
 
       if (type === 'audio') {
         args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0', '--embed-thumbnail');
       } else {
-        // Video
+        // Video Kalite Seçimi (FFmpeg ile birleştirme)
         if (quality === 'best' || !quality) {
-          args.push('-f', 'bv*+ba/b');
+          args.push('-f', 'bestvideo+bestaudio/best');
         } else {
           const maxHg = parseInt(quality, 10);
           if (!isNaN(maxHg)) {
-            args.push('-f', `bv*[height<=${maxHg}]+ba/b[height<=${maxHg}]/bv*+ba/b`);
+            args.push('-f', `bestvideo[height<=${maxHg}]+bestaudio/best[height<=${maxHg}]/best`);
           } else {
-            args.push('-f', 'bv*+ba/b');
+            args.push('-f', 'bestvideo+bestaudio/best');
           }
         }
         args.push('--merge-output-format', 'mp4');
@@ -657,6 +658,7 @@ function compareVersions(a, b) {
 }
 
 // Download and install update
+// Download and install update
 ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
   return new Promise((resolve) => {
     if (!setupUrl) {
@@ -710,17 +712,21 @@ ipcMain.handle('download-and-install-update', async (event, setupUrl) => {
         response.pipe(file);
 
         file.on('finish', () => {
-          file.close();
-          exec(`"${setupPath}"`, (error) => {
-            if (error) resolve({ success: false, error: error.message });
+          file.close(() => {
+            // Setup uygulamasını ana süreçten bağımsız başlat
+            const installer = spawn(setupPath, [], {
+              detached: true,
+              stdio: 'ignore'
+            });
+            installer.unref();
+
+            // Mevcut uygulamayı hemen kapat ki dosyalar kilitli kalmasın
+            setTimeout(() => {
+              app.exit(0);
+            }, 500);
+
+            resolve({ success: true, path: setupPath });
           });
-
-          setTimeout(() => {
-            app.isQuitting = true;
-            app.quit();
-          }, 1000);
-
-          resolve({ success: true, path: setupPath });
         });
       }).on('error', (e) => {
         fs.unlink(setupPath, () => { });
